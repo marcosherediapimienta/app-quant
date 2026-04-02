@@ -1,0 +1,109 @@
+@import '../Input/Input.css';
+
+.multiselect-wrapper {
+  position: relative;
+}
+
+.multiselect-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.multiselect-trigger-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.multiselect-trigger-text.placeholder {
+  color: var(--text-secondary);
+}
+
+.multiselect-caret {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.multiselect-popover {
+  position: absolute;
+  z-index: 30;
+  margin-top: 0.5rem;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  padding: 0.5rem;
+}
+
+.multiselect-actions {
+  display: flex !important;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.5rem;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.multiselect-action {
+  background: transparent;
+  border: none;
+  color: var(--primary) !important;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition-fast);
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline-block !important;
+}
+
+.multiselect-action:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--primary-dark) !important;
+}
+
+.multiselect-action:active {
+  background-color: var(--bg-secondary);
+}
+
+.multiselect-options {
+  max-height: 260px;
+  overflow: auto;
+  padding: 0.25rem;
+}
+
+.multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.multiselect-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.multiselect-option input {
+  width: 16px;
+  height: 16px;
+}
+
+.multiselect-option-label {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+
+

@@ -1,0 +1,131 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+.header {
+  background: #1a1a2e;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-logo:hover {
+  opacity: 0.9;
+}
+
+.nav-logo-icon {
+  font-size: 1.25rem;
+}
+
+.nav-logo-text {
+  color: #ffffff;
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.125rem;
+  margin-left: auto;
+  align-items: center;
+}
+
+.nav-link {
+  padding: 0.4rem 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.8375rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.nav-link-active {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.main {
+  flex: 1;
+  padding: var(--spacing-xl) 0;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+}
+
+.footer {
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
+  margin-top: auto;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    padding: 0.625rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .nav-logo {
+    font-size: 1rem;
+  }
+
+  .nav-links {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+}
+
