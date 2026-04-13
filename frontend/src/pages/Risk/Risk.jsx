@@ -107,19 +107,14 @@ const Risk = () => {
               onChange={(e) => setBenchmarkName(e.target.value)}
               options={[
                 { value: '', label: 'Select benchmark...', disabled: true },
-                { value: 'SP500', label: 'S&P 500' },
-                { value: 'NASDAQ', label: 'NASDAQ Composite' },
-                { value: 'DOW', label: 'Dow Jones' },
-                { value: 'RUSSELL2000', label: 'Russell 2000' },
-                { value: 'MSCI_WORLD', label: 'MSCI World' },
-                { value: 'STOXX50', label: 'Euro Stoxx 50' },
-                { value: 'FTSE100', label: 'FTSE 100' },
-                { value: 'DAX', label: 'DAX' },
-                { value: 'NIKKEI', label: 'Nikkei 225' },
-                { value: 'CAC40', label: 'CAC 40' },
-                { value: 'EUROSTOXX', label: 'Euro Stoxx' },
-                { value: 'IBEX35', label: 'IBEX 35' },
-                { value: 'VIX', label: 'VIX' },
+                { value: 'SP500', label: 'S&P 500 (USD)' },
+                { value: 'NASDAQ100', label: 'NASDAQ 100 (USD)' },
+                { value: 'DOW30', label: 'Dow Jones 30 (USD)' },
+                { value: 'RUSSELL2000', label: 'Russell 2000 (USD)' },
+                { value: 'MSCI_WORLD', label: 'MSCI World (USD)' },
+                { value: 'EUROSTOXX50', label: 'Euro Stoxx 50 (EUR)' },
+                { value: 'NIKKEI225', label: 'Nikkei 225 (JPY)' },
+                { value: 'IBEX35', label: 'IBEX 35 (EUR)' },
               ]}
               helperText="Reference index for comparison"
               fullWidth
