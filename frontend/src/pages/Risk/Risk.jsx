@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { riskAPI } from '../../api/risk';
+import { riskService } from '../../services/riskService';
 import { useAnalysis } from '../../hooks/useAnalysis';
-import { parseTickers } from '../../utils/dataFormatter';
+import { parseTickers } from '../../utils/formatters';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -57,7 +57,7 @@ const Risk = () => {
       }
 
       await analysis.execute(() =>
-        riskAPI.analyzeComplete(
+        riskService.analyzeComplete(
           tickers, benchmarkName,
           startDate || undefined, endDate || undefined,
           weights, riskFreeRateValue, confidenceLevelValue

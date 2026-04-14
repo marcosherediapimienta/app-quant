@@ -108,5 +108,3 @@ export const SITUATION_AUTO_FACTORS = [
   'SP500', 'NIKKEI', 'DAX',
   'JPN_BOND', 'EUR_BOND',
 ];
-
-

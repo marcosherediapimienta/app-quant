@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const valuationAPI = {
+export const valuationService = {
   analyzeCompany: async (ticker) => {
     return apiClient.post('/valuation/company/', {
       ticker: ticker,
@@ -27,4 +27,3 @@ export const valuationAPI = {
     });
   },
 };
-

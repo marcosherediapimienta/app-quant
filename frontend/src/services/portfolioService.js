@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const portfolioAPI = {
+export const portfolioService = {
   getIndices: async () => {
     return apiClient.get('/portfolio/indices/');
   },
@@ -13,7 +13,7 @@ export const portfolioAPI = {
       config: config,
     });
   },
-  
+
   analyzeFromIndex: async (indexName, startDate = '', endDate = '', config = null) => {
     return apiClient.post('/portfolio/analyze/', {
       index_name: indexName,
@@ -23,4 +23,3 @@ export const portfolioAPI = {
     });
   },
 };
-

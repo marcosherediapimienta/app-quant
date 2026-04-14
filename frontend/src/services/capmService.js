@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const capmAPI = {
+export const capmService = {
   analyze: async (assetReturns, marketReturns, riskFreeRate, marketTicker = null) => {
     return apiClient.post('/capm/analyze/', {
       asset_returns: assetReturns,
@@ -36,4 +36,3 @@ export const capmAPI = {
     });
   },
 };
-

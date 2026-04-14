@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const riskAPI = {
+export const riskService = {
   calculateRatios: async (returns, weights, riskFreeRate, ddof = 0) => {
     return apiClient.post('/risk/ratios/', {
       returns: returns,
@@ -57,13 +57,12 @@ export const riskAPI = {
       risk_free_rate: riskFreeRate,
       confidence_level: confidenceLevel,
     };
-    
+
     if (startDate) body.start_date = startDate;
     if (endDate) body.end_date = endDate;
     if (weights) body.weights = weights;
     if (varMethods) body.var_methods = varMethods;
-    
+
     return apiClient.post('/risk/complete/', body);
   },
 };
-

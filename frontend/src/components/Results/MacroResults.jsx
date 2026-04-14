@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Card from '../Card/Card';
-import { getFactorDescription } from '../../utils/defaults';
+import { getFactorDescription } from '../../utils/options';
 import './Results.css';
 
 const MacroResults = ({ data }) => {

@@ -1,20 +1,19 @@
 import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+import { API_BASE_URL, API_TIMEOUT } from '../utils/constants';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 1800000, 
+  timeout: API_TIMEOUT,
 });
 
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
     let message = 'Unknown error';
-    
+
     if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
       message = 'The analysis is taking too long. Please try with fewer companies or a smaller index.';
     } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -24,10 +23,9 @@ apiClient.interceptors.response.use(
     } else if (error.message) {
       message = error.message;
     }
-    
+
     return Promise.reject(new Error(message));
   }
 );
 
 export default apiClient;
-

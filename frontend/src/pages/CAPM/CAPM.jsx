@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { capmAPI } from '../../api/capm';
+import { capmService } from '../../services/capmService';
 import { useDataDownload } from '../../hooks/useDataDownload';
 import { useAnalysis } from '../../hooks/useAnalysis';
-import { parseTickers, formatReturnsForAPI } from '../../utils/dataFormatter';
-import { PORTFOLIO_TICKER_OPTIONS } from '../../utils/defaults';
+import { parseTickers, formatReturnsForAPI } from '../../utils/formatters';
+import { PORTFOLIO_TICKER_OPTIONS } from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
 import ErrorDisplay from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -99,7 +99,7 @@ const CAPM = () => {
     const marketArray = convertReturnsToArray(marketReturns);
 
     await analysis.execute(() =>
-      capmAPI.analyze(assetArray, marketArray, riskFreeRateValue, marketTicker)
+      capmService.analyze(assetArray, marketArray, riskFreeRateValue, marketTicker)
     );
   };
 
@@ -124,7 +124,7 @@ const CAPM = () => {
     const returnsFormatted = formatReturnsForAPI(returns);
 
     await analysis.execute(() =>
-      capmAPI.multiAsset(returnsFormatted, marketReturns, riskFreeRateValue, marketTicker)
+      capmService.multiAsset(returnsFormatted, marketReturns, riskFreeRateValue, marketTicker)
     );
   };
 
@@ -141,7 +141,7 @@ const CAPM = () => {
     const returnsFormatted = formatReturnsForAPI(returns);
 
     await analysis.execute(() =>
-      capmAPI.optimize(returnsFormatted, riskFreeRateValue, nPointsValue, allowShort)
+      capmService.optimize(returnsFormatted, riskFreeRateValue, nPointsValue, allowShort)
     );
   };
 

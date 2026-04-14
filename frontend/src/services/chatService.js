@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const chatApi = {
+export const chatService = {
   getWelcome: async () => {
     return apiClient.get('/chat/welcome/');
   },

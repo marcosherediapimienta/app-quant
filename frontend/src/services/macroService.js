@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const macroAPI = {
+export const macroService = {
   analyzeFactors: async (portfolioReturns, macroFactors, useHac = true) => {
     return apiClient.post('/macro/factors/', {
       portfolio_returns: portfolioReturns,
@@ -22,4 +22,3 @@ export const macroAPI = {
     });
   },
 };
-

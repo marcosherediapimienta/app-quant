@@ -71,4 +71,3 @@ export const formatLargeNumber = (value, decimals = 2) => {
 
   return value.toFixed(decimals);
 };
-

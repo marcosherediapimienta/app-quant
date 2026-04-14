@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import Card from '../Card/Card';
-import { formatPercent, formatNumber } from '../../utils/dataFormatter';
+import { formatPercent, formatNumber } from '../../utils/formatters';
 import './Results.css';
 import './MacroSituationDashboard.css';
 

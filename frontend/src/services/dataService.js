@@ -1,6 +1,6 @@
-import apiClient from './client';
+import apiClient from './apiService';
 
-export const dataAPI = {
+export const dataService = {
   downloadTickers: async (tickers, startDate = null, endDate = null, type = 'returns') => {
     return apiClient.post('/data/download/', {
       tickers: tickers,
@@ -18,4 +18,3 @@ export const dataAPI = {
     });
   },
 };
-

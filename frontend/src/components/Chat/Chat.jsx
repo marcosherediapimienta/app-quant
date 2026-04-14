@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { chatApi } from '../../api/chat';
+import { chatService } from '../../services/chatService';
 import Card from '../Card/Card';
 import Button from '../Button/Button';
 import ReactMarkdown from 'react-markdown';
@@ -64,7 +64,7 @@ const Chat = () => {
 
   const loadWelcomeMessage = async () => {
     try {
-      const data = await chatApi.getWelcome();
+      const data = await chatService.getWelcome();
       setMessages([{
         role: 'assistant',
         content: data.message,
@@ -91,7 +91,7 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const data = await chatApi.sendMessage(userMessage, SESSION_ID);
+      const data = await chatService.sendMessage(userMessage, SESSION_ID);
 
       if (!data || !data.response) {
         throw new Error('Invalid server response');
@@ -135,7 +135,7 @@ const Chat = () => {
     if (!window.confirm('Are you sure you want to clear the chat?')) return;
 
     try {
-      await chatApi.clearMemory(SESSION_ID);
+      await chatService.clearMemory(SESSION_ID);
       setMessages([]);
       setShowSuggestions(true);
       await loadWelcomeMessage();
