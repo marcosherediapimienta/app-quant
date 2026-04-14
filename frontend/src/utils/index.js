@@ -1,4 +1,4 @@
-export { API_BASE_URL, API_TIMEOUT } from './constants';
+export { API_BASE_URL, API_TIMEOUT, API_KEY } from './constants';
 
 export {
   parseTickers,

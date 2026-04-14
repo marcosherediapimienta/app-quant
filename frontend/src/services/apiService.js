@@ -1,11 +1,12 @@
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT } from '../utils/constants';
+import { API_BASE_URL, API_TIMEOUT, API_KEY } from '../utils/constants';
+
+const headers = { 'Content-Type': 'application/json' };
+if (API_KEY) headers['X-API-Key'] = API_KEY;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers,
   timeout: API_TIMEOUT,
 });
 

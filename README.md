@@ -20,7 +20,7 @@ A modern full-stack quantitative finance platform built with React frontend and 
 
 ## Overview
 
-Institutional-grade quantitative analysis platform for portfolio management, risk assessment, CAPM modeling, company valuation, macroeconomic analysis and AI-powered financial assistance. The application follows a clean / hexagonal architecture pattern with all business logic self-contained — no external repository dependencies.
+Institutional-grade quantitative analysis platform for portfolio management, risk assessment, CAPM modeling, company valuation, macroeconomic analysis and AI-powered financial assistance. The application follows a clean / hexagonal architecture pattern with all business logic self-contained.
 
 ### Key Features
 
@@ -369,29 +369,6 @@ http://localhost:8000/api/v1/
 | `POST` | `/chat/clear/` | Clear conversation memory |
 | `GET` | `/chat/history/` | Get conversation history |
 
-### Example API Usage
-
-```bash
-# Download historical data
-curl -X POST http://localhost:8000/api/v1/data/download/ \
-  -H "Content-Type: application/json" \
-  -d '{"tickers": ["AAPL", "GOOGL", "MSFT"], "type": "returns"}'
-
-# Run portfolio optimization from index
-curl -X POST http://localhost:8000/api/v1/portfolio/analyze/ \
-  -H "Content-Type: application/json" \
-  -d '{"index_name": "SP500", "config": {"method": "markowitz"}}'
-
-# Analyze company valuation
-curl -X POST http://localhost:8000/api/v1/valuation/company/ \
-  -H "Content-Type: application/json" \
-  -d '{"ticker": "AAPL"}'
-
-# Chat with GalaAI
-curl -X POST http://localhost:8000/api/v1/chat/send/ \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Explain the Sharpe ratio"}'
-```
 
 ## Testing
 
@@ -467,24 +444,6 @@ All market data is sourced from Yahoo Finance and FRED via their public APIs. Th
 - **Index composition drift.** The S&P 500 constituent list is fetched dynamically. Changes in composition (additions, removals) may not be reflected instantly, leading to minor discrepancies in full-index analyses.
 
 > **Disclaimer:** All results produced by this application are for informational and educational purposes only. They do not constitute investment advice and should not be used as the sole basis for any investment decision.
-
-## Contributing
-
-Contributions are welcome. Please follow these steps:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
-
-### Development Guidelines
-
-- Write clear, descriptive commit messages
-- Include tests for new features
-- Update documentation as needed
-- Follow the existing code style
-- Test your changes thoroughly
 
 ## License
 

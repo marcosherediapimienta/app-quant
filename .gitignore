@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Database
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / Coverage
+htmlcov/
+.coverage
+*.egg-info/
+build/
