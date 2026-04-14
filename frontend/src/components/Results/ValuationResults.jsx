@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ReferenceLine, ScatterChart, Scatter, ZAxis, PieChart, Pie } from 'recharts';
 import Card from '../Card/Card';
-import { formatLargeNumber } from '../../utils/dataFormatter';
+import { formatLargeNumber } from '../../utils/formatters';
 import './Results.css';
 
 const CATEGORY_KEYS = ['profitability', 'financial_health', 'growth', 'efficiency', 'valuation'];

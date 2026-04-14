@@ -1,6 +1,6 @@
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import Card from '../Card/Card';
-import { formatLargeNumber } from '../../utils/dataFormatter';
+import { formatLargeNumber } from '../../utils/formatters';
 import './Results.css';
 
 const SECTOR_PALETTE = [

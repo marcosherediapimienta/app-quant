@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { dataAPI } from '../api/data';
+import { dataService } from '../services/dataService';
 
 export const useDataDownload = () => {
   const [loading, setLoading] = useState(false);
@@ -25,14 +25,14 @@ export const useDataDownload = () => {
   const downloadTickers = useCallback(
     (tickers, options = {}) =>
       run(() =>
-        dataAPI.downloadTickers(tickers, options.startDate, options.endDate, options.type || 'returns'),
+        dataService.downloadTickers(tickers, options.startDate, options.endDate, options.type || 'returns'),
       ),
     [run],
   );
 
   const downloadMacroFactors = useCallback(
     (factors = null, options = {}) =>
-      run(() => dataAPI.downloadMacroFactors(factors, options.startDate, options.endDate)),
+      run(() => dataService.downloadMacroFactors(factors, options.startDate, options.endDate)),
     [run],
   );
 

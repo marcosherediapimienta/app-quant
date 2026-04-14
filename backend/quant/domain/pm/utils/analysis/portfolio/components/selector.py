@@ -1,0 +1,214 @@
+import logging
+import pandas as pd
+from typing import List, Dict
+from ...valuation.metrics.score_extractor import ScoreExtractor
+from ....tools.config import PORTFOLIO_CONFIG
+
+logger = logging.getLogger(__name__)
+
+class CompanySelector:
+    def __init__(
+        self,
+        min_score: float = None,
+        max_companies: int = None,
+        max_per_sector: int = None,
+        default_sector: str = None,
+    ):
+        config = PORTFOLIO_CONFIG['selection']
+        defaults = PORTFOLIO_CONFIG['defaults']
+
+        self.min_score = min_score if min_score is not None else config['min_score']
+        self.max_companies = max_companies if max_companies is not None else config['max_companies']
+
+        if max_per_sector is not None:
+            self.max_per_sector = max_per_sector
+        else:
+            self.max_per_sector = max(config['max_per_sector'], self.max_companies // 3)
+
+        self.default_sector = default_sector if default_sector is not None else defaults['sector_name']
+        self.score_extractor = ScoreExtractor()
+        self.scoring_weights = PORTFOLIO_CONFIG['scoring_weights']
+        self.selection_thresholds = PORTFOLIO_CONFIG.get('selection_thresholds', {})
+    
+    def select(
+        self,
+        analysis_results: Dict[str, Dict],
+        method: str = ''
+    ) -> List[str]:
+
+        if not method:
+            method = PORTFOLIO_CONFIG['selection']['default_method']
+        
+        logger.debug("CompanySelector — converting %d results to DataFrame", len(analysis_results))
+        df = self._to_dataframe(analysis_results)
+        logger.debug("CompanySelector — DataFrame has %d rows", len(df))
+
+        df = self._deduplicate_by_company(df)
+        logger.debug("CompanySelector — after deduplication: %d rows", len(df))
+
+        logger.debug("CompanySelector — filtering by min_score >= %s", self.min_score)
+        df = df[df['total'] >= self.min_score].copy()
+        logger.debug("CompanySelector — %d companies pass min_score", len(df))
+
+        score_cols = ['profitability', 'health', 'growth', 'valuation']
+        available_cols = [c for c in score_cols if c in df.columns]
+        if available_cols:
+            df['categories_with_data'] = (df[available_cols] > 0).sum(axis=1)
+            before = len(df)
+            df = df[df['categories_with_data'] >= 3].copy()
+            dropped = before - len(df)
+            if dropped > 0:
+                logger.info("CompanySelector — dropped %d companies with insufficient fundamental data (<3 categories)", dropped)
+            df = df.drop(columns=['categories_with_data'])
+        
+        if df.empty:
+            logger.warning("CompanySelector — no companies with score >= %s", self.min_score)
+            return []
+        
+        logger.debug("CompanySelector — applying scoring method: %s", method)
+        df = self._apply_method_thresholds(df, method)
+        if df.empty:
+            logger.warning("CompanySelector — no companies left after '%s' method thresholds", method)
+            return []
+
+        df = self._score_by_method(df, method)
+        
+        logger.debug("CompanySelector — applying diversification (max_per_sector=%d)", self.max_per_sector)
+        selected = self._apply_diversification(df)
+        logger.debug("CompanySelector — %d companies selected after diversification", len(selected))
+        
+        return selected[:self.max_companies]
+    
+    def _to_dataframe(self, results: Dict) -> pd.DataFrame:
+        rows = []
+        for ticker, analysis in results.items():
+            if not analysis.get('success'):
+                continue
+            
+            scores = analysis.get('scores', {})
+            rows.append({
+                'ticker': ticker,
+                'company_name': analysis.get('company_name', ticker),
+                'sector': analysis.get('sector', self.default_sector),
+                'total': scores.get('total', 0),
+                'profitability': self.score_extractor.extract_profitability(analysis),
+                'health': self.score_extractor.extract_health(analysis),
+                'growth': self.score_extractor.extract_growth(analysis),
+                'valuation': self.score_extractor.extract_valuation(analysis),
+            })
+        
+        return pd.DataFrame(rows)
+
+    def _deduplicate_by_company(self, df: pd.DataFrame) -> pd.DataFrame:
+  
+        if df.empty or 'company_name' not in df.columns:
+            return df
+        if 'total' not in df.columns:
+            return df.drop_duplicates(subset=['company_name'], keep='first').reset_index(drop=True)
+
+        work = df.copy()
+        work['total_numeric'] = pd.to_numeric(work['total'], errors='coerce')
+
+        valid = work[work['total_numeric'].notna()]
+        if valid.empty:
+            logger.warning(
+                "CompanySelector — all groups have NaN total score; keeping first ticker per company"
+            )
+            deduped = work.drop_duplicates(subset=['company_name'], keep='first').copy()
+            deduped = deduped.drop(columns=['total_numeric']).reset_index(drop=True)
+            return deduped
+
+        idx_best = valid.groupby('company_name')['total_numeric'].idxmax()
+        deduped = work.loc[idx_best].copy()
+
+        covered_companies = set(deduped['company_name'].astype(str))
+        missing_mask = ~work['company_name'].astype(str).isin(covered_companies)
+        if missing_mask.any():
+            fallback = work[missing_mask].drop_duplicates(subset=['company_name'], keep='first')
+            deduped = pd.concat([deduped, fallback], ignore_index=True)
+
+        deduped = deduped.drop(columns=['total_numeric']).reset_index(drop=True)
+        
+        removed = len(df) - len(deduped)
+        if removed > 0:
+            logger.info("CompanySelector — deduplicated %d ticker(s) from the same company (keeping highest score)", removed)
+        
+        return deduped
+    
+    def _score_by_method(self, df: pd.DataFrame, method: str) -> pd.DataFrame:
+
+        if method in self.scoring_weights:
+            w = self.scoring_weights[method]
+            df['final_score'] = sum(df[col] * weight for col, weight in w.items())
+        else:
+            df['final_score'] = df['total']
+
+        return df.sort_values('final_score', ascending=False)
+
+    def _apply_method_thresholds(self, df: pd.DataFrame, method: str) -> pd.DataFrame:
+        thresholds = self.selection_thresholds.get(method, {})
+        if not thresholds:
+            return df
+
+        mask = pd.Series(True, index=df.index)
+        applied_rules = []
+
+        for metric, min_value in thresholds.items():
+            if metric not in df.columns:
+                logger.warning(
+                    "CompanySelector — threshold metric '%s' not found for method '%s'",
+                    metric, method
+                )
+                continue
+
+            numeric = pd.to_numeric(df[metric], errors='coerce')
+            mask &= numeric.notna() & (numeric >= float(min_value))
+            applied_rules.append(f"{metric}>={min_value}")
+
+        filtered = df[mask].copy()
+        dropped = len(df) - len(filtered)
+        if dropped > 0:
+            logger.info(
+                "CompanySelector — dropped %d companies by '%s' thresholds (%s)",
+                dropped,
+                method,
+                ", ".join(applied_rules) if applied_rules else "no valid rules applied",
+            )
+        return filtered
+    
+    def _apply_diversification(self, df: pd.DataFrame) -> List[str]:
+        selected = []
+        sector_count = {}
+
+        for _, row in df.iterrows():
+            if len(selected) >= self.max_companies:
+                break
+            
+            sector = row['sector']
+            if sector_count.get(sector, 0) < self.max_per_sector:
+                selected.append(row['ticker'])
+                sector_count[sector] = sector_count.get(sector, 0) + 1
+        
+        unique_sectors = df['sector'].nunique()
+        
+        if len(selected) < self.max_companies:
+
+            if unique_sectors <= 3:
+                relaxed_limit = self.max_companies
+            else:
+                relaxed_limit = max(self.max_per_sector, self.max_companies // unique_sectors + 1)
+            
+            for _, row in df.iterrows():
+                if len(selected) >= self.max_companies:
+                    break
+                
+                ticker = row['ticker']
+
+                if ticker not in selected:
+                    sector = row['sector']
+                    
+                    if sector_count.get(sector, 0) < relaxed_limit:
+                        selected.append(ticker)
+                        sector_count[sector] = sector_count.get(sector, 0) + 1
+        
+        return selected

@@ -1,5 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
-import { formatPct, formatPp, getChangeColor } from '../../utils/dataFormatter';
+import { formatPct, formatPp, getChangeColor } from '../../utils/formatters';
 import './Results.css';
 import './MacroSituationDashboard.css';
 

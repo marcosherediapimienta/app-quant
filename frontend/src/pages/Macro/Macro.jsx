@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { macroAPI } from '../../api/macro';
+import { macroService } from '../../services/macroService';
 import { useDataDownload } from '../../hooks/useDataDownload';
 import { useAnalysis } from '../../hooks/useAnalysis';
-import { parseTickers, formatMacroFactorsForAPI, formatReturnsForAPI } from '../../utils/dataFormatter';
-import { MACRO_FACTORS_OPTIONS, PORTFOLIO_TICKER_OPTIONS, SITUATION_AUTO_FACTORS } from '../../utils/defaults';
+import { parseTickers, formatMacroFactorsForAPI, formatReturnsForAPI } from '../../utils/formatters';
+import { MACRO_FACTORS_OPTIONS, PORTFOLIO_TICKER_OPTIONS, SITUATION_AUTO_FACTORS } from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -58,7 +58,7 @@ const Macro = () => {
     const { portfolioReturns, macroFactors } = await handleDownloadData();
     
     await analysis.execute(() =>
-      macroAPI.analyzeFactors(portfolioReturns, macroFactors, true)
+      macroService.analyzeFactors(portfolioReturns, macroFactors, true)
     );
   };
 
@@ -66,7 +66,7 @@ const Macro = () => {
     const { portfolioReturns, macroFactors } = await handleDownloadData();
     
     await analysis.execute(() =>
-      macroAPI.analyzeCorrelation(portfolioReturns, macroFactors)
+      macroService.analyzeCorrelation(portfolioReturns, macroFactors)
     );
   };
 
@@ -93,7 +93,7 @@ const Macro = () => {
     });
 
 
-    await analysis.execute(() => macroAPI.analyzeSituation(factorsDict));
+    await analysis.execute(() => macroService.analyzeSituation(factorsDict));
   };
 
   if (dataDownload.loading || analysis.loading) {

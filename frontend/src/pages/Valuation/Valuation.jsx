@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { valuationAPI } from '../../api/valuation';
+import { valuationService } from '../../services/valuationService';
 import { useAnalysis } from '../../hooks/useAnalysis';
-import { parseTickers } from '../../utils/dataFormatter';
+import { parseTickers } from '../../utils/formatters';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -31,18 +31,18 @@ const Valuation = () => {
   ];
 
   const handleAnalyzeCompany = () =>
-    analysis.execute(() => valuationAPI.analyzeCompany(ticker));
+    analysis.execute(() => valuationService.analyzeCompany(ticker));
 
   const handleCompare = () => {
     const tickers = parseTickers(tickersInput);
     if (tickers.length === 0) return;
-    return analysis.execute(() => valuationAPI.compare(tickers));
+    return analysis.execute(() => valuationService.compare(tickers));
   };
 
   const handleGenerateSignals = () => {
     const tickers = parseTickers(tickersInput);
     if (tickers.length === 0) return;
-    return analysis.execute(() => valuationAPI.generateSignals(tickers));
+    return analysis.execute(() => valuationService.generateSignals(tickers));
   };
 
   if (analysis.loading) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { portfolioAPI } from '../../api/portfolio';
+import { portfolioService } from '../../services/portfolioService';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
@@ -37,7 +37,7 @@ const Portfolio = () => {
   useEffect(() => {
     const loadIndices = async () => {
       try {
-        const response = await portfolioAPI.getIndices();
+        const response = await portfolioService.getIndices();
         const options = response?.index_options || [];
         if (Array.isArray(options) && options.length > 0) {
           setIndexOptions([
@@ -75,7 +75,7 @@ const Portfolio = () => {
       max_companies: parseInt(maxCompanies) || 10,
     };
     await analysis.execute(() =>
-      portfolioAPI.analyzeFromIndex(indexName, startDate || undefined, endDate || undefined, config)
+      portfolioService.analyzeFromIndex(indexName, startDate || undefined, endDate || undefined, config)
     );
   };
 
