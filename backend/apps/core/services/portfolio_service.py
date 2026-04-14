@@ -2,13 +2,13 @@ from .quant_service import QuantService
 from typing import Dict, List, Optional
 
 _INDEX_LABELS = {
-    'SP500': 'S&P 500 (~500 companies)',
-    'NASDAQ100': 'NASDAQ 100 (~100 companies)',
-    'DOW30': 'Dow Jones 30 (~30 companies)',
-    'IBEX35': 'IBEX 35 (~35 companies)',
-    'EUROSTOXX50': 'EURO STOXX 50 (~50 companies)',
-    'NIKKEI225': 'Nikkei 225 (~225 companies)',
-    'MSCI_WORLD': 'MSCI World proxy (SP500 + EURO STOXX 50 + Nikkei 225)',
+    'SP500': 'S&P 500 · ~500 companies (USD)',
+    'NASDAQ100': 'NASDAQ 100 · ~100 companies (USD)',
+    'DOW30': 'Dow Jones 30 · ~30 companies (USD)',
+    'IBEX35': 'IBEX 35 · ~35 companies (EUR)',
+    'EUROSTOXX50': 'EURO STOXX 50 · ~50 companies (EUR)',
+    'NIKKEI225': 'Nikkei 225 · ~225 companies (JPY)',
+    'MSCI_WORLD': 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)',
 }
 
 class PortfolioService:

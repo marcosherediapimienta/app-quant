@@ -12,13 +12,13 @@ import './Portfolio.css';
 
 const FALLBACK_INDEX_OPTIONS = [
   { value: '', label: 'Select reference index...', disabled: true },
-  { value: 'SP500', label: 'S&P 500 (~500 companies)' },
-  { value: 'NASDAQ100', label: 'NASDAQ 100 (~100 companies)' },
-  { value: 'DOW30', label: 'Dow Jones 30 (~30 companies)' },
-  { value: 'IBEX35', label: 'IBEX 35 (~35 companies)' },
-  { value: 'EUROSTOXX50', label: 'EURO STOXX 50 (~50 companies)' },
-  { value: 'NIKKEI225', label: 'Nikkei 225 (~225 companies)' },
-  { value: 'MSCI_WORLD', label: 'MSCI World proxy (SP500 + EURO STOXX 50 + Nikkei 225)' },
+  { value: 'SP500', label: 'S&P 500 · ~500 companies (USD)' },
+  { value: 'NASDAQ100', label: 'NASDAQ 100 · ~100 companies (USD)' },
+  { value: 'DOW30', label: 'Dow Jones 30 · ~30 companies (USD)' },
+  { value: 'IBEX35', label: 'IBEX 35 · ~35 companies (EUR)' },
+  { value: 'EUROSTOXX50', label: 'EURO STOXX 50 · ~50 companies (EUR)' },
+  { value: 'NIKKEI225', label: 'Nikkei 225 · ~225 companies (JPY)' },
+  { value: 'MSCI_WORLD', label: 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)' },
 ];
 
 const Portfolio = () => {
