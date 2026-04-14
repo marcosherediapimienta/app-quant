@@ -61,8 +61,6 @@ Institutional-grade quantitative analysis platform for portfolio management, ris
 
 ## Architecture
 
-The application follows a clean / hexagonal architecture pattern:
-
 ```
 ┌─────────────────┐                  ┌─────────────────┐
 │  React Frontend │                  │ Django Backend   │
@@ -174,8 +172,6 @@ Before you begin, ensure you have the following installed:
 
 ### Backend Development
 
-The Django backend follows a clean architecture pattern with the following structure:
-
 ```
 backend/
 ├── general_settings/               # Django project configuration
@@ -199,8 +195,6 @@ backend/
 ```
 
 ### Frontend Development
-
-The React frontend is organized as follows:
 
 ```
 frontend/
