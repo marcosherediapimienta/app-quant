@@ -108,13 +108,13 @@ const Risk = () => {
               options={[
                 { value: '', label: 'Select benchmark...', disabled: true },
                 { value: 'SP500', label: 'S&P 500 (USD)' },
-                { value: 'NASDAQ100', label: 'NASDAQ 100 (USD)' },
+                { value: 'NASDAQ100', label: 'NASDAQ 100 (USD)',},
                 { value: 'DOW30', label: 'Dow Jones 30 (USD)' },
                 { value: 'RUSSELL2000', label: 'Russell 2000 (USD)' },
                 { value: 'MSCI_WORLD', label: 'MSCI World (USD)' },
-                { value: 'EUROSTOXX50', label: 'Euro Stoxx 50 (EUR)' },
-                { value: 'NIKKEI225', label: 'Nikkei 225 (JPY)' },
-                { value: 'IBEX35', label: 'IBEX 35 (EUR)' },
+                { value: 'EUROSTOXX50', label: 'Euro Stoxx 50 (USD)' },
+                { value: 'NIKKEI225', label: 'Nikkei 225 (USD)' },
+                { value: 'IBEX35', label: 'IBEX 35 (USD)' },
               ]}
               helperText="Reference index for comparison"
               fullWidth

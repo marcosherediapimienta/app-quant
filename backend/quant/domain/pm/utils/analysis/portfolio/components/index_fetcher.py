@@ -130,9 +130,9 @@ class IndexFetcher:
         if tickers:
             print(f" Obtenidos {len(tickers)} componentes del NASDAQ-100")
             return tickers
-        
-        print(" No se pudieron obtener componentes del NASDAQ-100")
-        return []
+
+        print(" NASDAQ-100: usando lista fallback (curada)...")
+        return self.fallback.get("nasdaq100", []).copy()
     
     def _get_dow30(self) -> List[str]:
         tickers = self._fetch_from_wikipedia(

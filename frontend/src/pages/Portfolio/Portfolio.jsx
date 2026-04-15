@@ -15,9 +15,9 @@ const FALLBACK_INDEX_OPTIONS = [
   { value: 'SP500', label: 'S&P 500 · ~500 companies (USD)' },
   { value: 'NASDAQ100', label: 'NASDAQ 100 · ~100 companies (USD)' },
   { value: 'DOW30', label: 'Dow Jones 30 · ~30 companies (USD)' },
-  { value: 'IBEX35', label: 'IBEX 35 · ~35 companies (EUR)' },
-  { value: 'EUROSTOXX50', label: 'EURO STOXX 50 · ~50 companies (EUR)' },
-  { value: 'NIKKEI225', label: 'Nikkei 225 · ~225 companies (JPY)' },
+  { value: 'IBEX35', label: 'IBEX 35 · ~35 companies (USD)' },
+  { value: 'EUROSTOXX50', label: 'EURO STOXX 50 · ~50 companies (USD)' },
+  { value: 'NIKKEI225', label: 'Nikkei 225 · ~225 companies (USD)' },
   { value: 'MSCI_WORLD', label: 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)' },
 ];
 
@@ -46,7 +46,6 @@ const Portfolio = () => {
           ]);
         }
       } catch (_e) {
-        // Keep fallback options if backend endpoint is unavailable.
       }
     };
     loadIndices();
@@ -113,7 +112,6 @@ const Portfolio = () => {
               value={indexName}
               onChange={(e) => setIndexName(e.target.value)}
               options={indexOptions}
-              helperText="Index universe to analyze for portfolio construction"
               fullWidth
             />
             <Select

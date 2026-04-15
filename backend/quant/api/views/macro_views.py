@@ -1,6 +1,7 @@
 import logging
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -18,6 +19,113 @@ from ._utils import (
 logger = logging.getLogger('quant.api')
 
 MIN_OBSERVATIONS = 100
+MIN_OBS_CORRELATION_MATRIX = 60
+TOP_PAIR_LIMIT = 20
+
+
+def _compute_correlation_matrix_log_returns(
+    cleaned_factors: dict,
+    min_obs: int = MIN_OBS_CORRELATION_MATRIX,
+    corr_method: str = "pearson",
+) -> Tuple[Optional[Response], Optional[Dict[str, Any]]]:
+    """
+    Pairwise correlation on daily log-returns: ln(P_t) - ln(P_{t-1}).
+    corr_method: 'pearson' (linear) or 'spearman' (monotonic / rank-based).
+    Requires strictly positive price levels (non-positive cells masked before log).
+    """
+    method = (corr_method or "pearson").strip().lower()
+    if method not in ("pearson", "spearman"):
+        return (
+            Response(
+                {"error": "correlation_method must be 'pearson' or 'spearman'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+            None,
+        )
+    if not cleaned_factors:
+        return (
+            Response(
+                {"error": "Could not parse series payload"},
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+            None,
+        )
+
+    prices_df = build_macro_df(cleaned_factors)
+    if prices_df.empty or prices_df.shape[1] < 2:
+        return (
+            Response(
+                {
+                    "error": "Need at least two series with overlapping data for a correlation matrix",
+                    "debug": {"columns": list(prices_df.columns), "rows": int(len(prices_df))},
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+            None,
+        )
+
+    prices_df = prices_df.apply(pd.to_numeric, errors="coerce")
+    prices_df = prices_df.where(prices_df > 0)
+    log_prices = np.log(prices_df)
+    log_returns = log_prices.diff().dropna(how="all")
+    log_returns = log_returns.dropna(axis=1, how="all")
+
+    if log_returns.shape[1] < 2:
+        return (
+            Response(
+                {"error": "After log-returns, fewer than 2 valid series remain (check for non-positive prices)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+            None,
+        )
+
+    if len(log_returns) < min_obs:
+        return (
+            Response(
+                {
+                    "error": f"Insufficient observations for correlation matrix: {len(log_returns)} < {min_obs}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
+            None,
+        )
+
+    min_periods = max(10, min(30, len(log_returns) // 4))
+    corr = log_returns.corr(method=method, min_periods=min_periods)
+    corr = corr.replace([np.inf, -np.inf], np.nan)
+
+    pairs: List[Tuple[str, str, float]] = []
+    cols = list(corr.columns)
+    for i, a in enumerate(cols):
+        for b in cols[i + 1 :]:
+            val = corr.loc[a, b]
+            if pd.isna(val):
+                continue
+            pairs.append((a, b, float(val)))
+
+    positive = [(a, b, c) for a, b, c in pairs if c > 0]
+    positive.sort(key=lambda x: -x[2])
+    negative = [(a, b, c) for a, b, c in pairs if c < 0]
+    negative.sort(key=lambda x: x[2])
+
+    def _pair_rows(items: List[Tuple[str, str, float]]) -> List[Dict[str, Any]]:
+        out = []
+        for a, b, c in items[:TOP_PAIR_LIMIT]:
+            out.append({"series_a": a, "series_b": b, "correlation": c})
+        return out
+
+    result = {
+        "analysis_mode": "correlation_matrix_log_returns",
+        "return_type": "log",
+        "correlation_method": method,
+        "n_observations": int(len(log_returns)),
+        "n_series": int(log_returns.shape[1]),
+        "min_periods": int(min_periods),
+        "correlation_matrix": corr.to_dict(),
+        "top_positive_pairs": _pair_rows(positive),
+        "top_negative_pairs": _pair_rows(negative),
+    }
+    return None, result
 
 def _prepare_macro_data(
     raw_returns,
@@ -111,6 +219,40 @@ def macro_analyze_correlation(request):
         return err
 
     result = get_macro_service().analyze_correlation(portfolio_series, factors_returns)
+    return Response(QuantResponseSerializer.clean_response(result), status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@api_endpoint("Error in macro correlation matrix analysis")
+def macro_analyze_correlation_matrix(request):
+    """
+    All-to-all correlation matrix on log-returns of price series.
+    Body: { "macro_factors": { "<date>": { "<ticker>": <float>, ... }, ... } }
+    or alias key "series" with the same nested shape as macro factor downloads.
+    Optional: min_observations (default 60).
+    Optional: correlation_method — 'pearson' (default) or 'spearman'.
+    """
+    raw = request.data.get('macro_factors') or request.data.get('series')
+    try:
+        min_obs = int(request.data.get('min_observations', MIN_OBS_CORRELATION_MATRIX))
+    except (TypeError, ValueError):
+        min_obs = MIN_OBS_CORRELATION_MATRIX
+
+    raw_method = request.data.get("correlation_method", "pearson")
+    if isinstance(raw_method, str) and raw_method.strip():
+        corr_method = raw_method.strip().lower()
+    else:
+        corr_method = "pearson"
+
+    cleaned = parse_macro_factors(raw) if raw else {}
+    err, result = _compute_correlation_matrix_log_returns(
+        cleaned,
+        min_obs=min_obs,
+        corr_method=corr_method,
+    )
+    if err:
+        return err
+
     return Response(QuantResponseSerializer.clean_response(result), status=status.HTTP_200_OK)
 
 

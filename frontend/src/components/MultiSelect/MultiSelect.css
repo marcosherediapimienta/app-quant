@@ -83,6 +83,21 @@
   padding: 0.25rem;
 }
 
+.multiselect-group + .multiselect-group {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.multiselect-group-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding: 0.35rem 0.4rem 0.25rem;
+}
+
 .multiselect-option {
   display: flex;
   align-items: center;

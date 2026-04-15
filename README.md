@@ -14,7 +14,6 @@ A modern full-stack quantitative finance platform built with React frontend and 
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Limitations](#limitations)
-- [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
 
