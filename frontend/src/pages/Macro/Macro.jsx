@@ -3,7 +3,11 @@ import { macroService } from '../../services/macroService';
 import { useDataDownload } from '../../hooks/useDataDownload';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import { parseTickers, formatMacroFactorsForAPI, formatReturnsForAPI } from '../../utils/formatters';
-import { MACRO_FACTORS_OPTIONS, PORTFOLIO_TICKER_OPTIONS, SITUATION_AUTO_FACTORS } from '../../utils/options';
+import {
+  MACRO_FACTORS_OPTIONS_GROUPED,
+  PORTFOLIO_TICKER_OPTIONS,
+  SITUATION_AUTO_FACTORS_CORE,
+} from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -31,8 +35,11 @@ const Macro = () => {
   ];
 
   const factorIdToTicker = (factorId) => {
-    const opt = MACRO_FACTORS_OPTIONS.find(o => o.value === factorId);
-    return opt?.ticker || factorId;
+    for (const g of MACRO_FACTORS_OPTIONS_GROUPED) {
+      const opt = (g.options || []).find((o) => o.value === factorId);
+      if (opt?.ticker) return opt.ticker;
+    }
+    return factorId;
   };
 
   const selectedTickers = () => {
@@ -71,7 +78,7 @@ const Macro = () => {
   };
 
   const handleAnalyzeSituation = async () => {
-    const uniqueFactors = [...new Set([...selectedFactors, ...SITUATION_AUTO_FACTORS])];
+    const uniqueFactors = [...new Set([...selectedFactors, ...SITUATION_AUTO_FACTORS_CORE])];
     const uniqueTickers = [...new Set(uniqueFactors.map(factorIdToTicker))];
 
     const factorsData = await dataDownload.downloadMacroFactors(uniqueTickers, {});
@@ -133,9 +140,12 @@ const Macro = () => {
               label="Macro Factors"
               value={selectedFactors}
               onChange={setSelectedFactors}
-              options={MACRO_FACTORS_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+              sections={MACRO_FACTORS_OPTIONS_GROUPED.map((g) => ({
+                groupLabel: g.groupLabel,
+                options: g.options.map((o) => ({ value: o.value, label: o.label })),
+              }))}
               placeholder="Select factors..."
-              helperText="You can select multiple factors"
+              helperText="Grouped: primary macro drivers vs benchmarks vs risk proxies. In Macro Situation, only the CORE factors are auto-loaded in addition to your selection."
               fullWidth
             />
           </div>

@@ -1,6 +1,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Card from '../Card/Card';
-import { getFactorDescription } from '../../utils/options';
+import {
+  getFactorDescription,
+  getFactorMetadata,
+  normalizeFactorId,
+  formatFactorCategoryLabel,
+} from '../../utils/options';
 import './Results.css';
 
 const MacroResults = ({ data }) => {
@@ -11,12 +16,15 @@ const MacroResults = ({ data }) => {
   const { regression, t_stats, p_values, risk_decomposition } = data;
   const betasData = Object.entries(regression.betas || {}).map(([factor, value]) => {
     const factorKey = factor.startsWith('^') ? factor : `^${factor}`;
+    const meta = getFactorMetadata(factor);
+    const canonical = normalizeFactorId(factor);
     return {
-      factor: factor.replace(/^\^/, ''),
+      factor: (canonical || factor).replace(/^\^/, ''),
       beta: typeof value === 'number' ? value : 0,
       tStat: (t_stats && t_stats[factorKey]) || (t_stats && t_stats[factor]) || 0,
       pValue: (p_values && p_values[factorKey]) || (p_values && p_values[factor]) || 0,
       description: getFactorDescription(factor),
+      factorKind: formatFactorCategoryLabel(meta?.category),
     };
   }).filter(item => item.beta !== 0 || item.tStat !== 0);
 
@@ -149,7 +157,8 @@ const MacroResults = ({ data }) => {
           <table className="notebook-table-styled">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>Factor</th>
+                <th style={{ textAlign: 'left' }}>Factor (id)</th>
+                <th style={{ textAlign: 'left' }}>Tipo</th>
                 <th style={{ textAlign: 'left' }}>Description</th>
                 <th style={{ textAlign: 'right' }}>Beta</th>
                 <th style={{ textAlign: 'right' }}>t-stat</th>
@@ -161,6 +170,7 @@ const MacroResults = ({ data }) => {
               {sortedBetasData.map((row, idx) => (
                 <tr key={idx}>
                   <td style={{ textAlign: 'left', fontWeight: '500' }}>{row.factor}</td>
+                  <td style={{ textAlign: 'left', fontSize: '0.8em', color: '#64748b' }}>{row.factorKind}</td>
                   <td style={{ textAlign: 'left', fontSize: '0.85em', color: '#666' }}>
                     {row.description}
                   </td>

@@ -5,6 +5,8 @@ const MultiSelect = ({
   label,
   value = [],
   options = [],
+  /** @type {{ groupLabel: string, options: { value: string, label: string }[] }[]} */
+  sections = null,
   onChange,
   placeholder = 'Select...',
   helperText,
@@ -13,11 +15,18 @@ const MultiSelect = ({
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
+  const flatOptions = useMemo(() => {
+    if (sections && sections.length > 0) {
+      return sections.flatMap((s) => s.options || []);
+    }
+    return options;
+  }, [sections, options]);
+
   const selectedSet = useMemo(() => new Set(value), [value]);
   const selectedLabels = useMemo(() => {
-    const map = new Map(options.map(o => [o.value, o.label]));
-    return value.map(v => map.get(v) || v);
-  }, [options, value]);
+    const map = new Map(flatOptions.map((o) => [o.value, o.label]));
+    return value.map((v) => map.get(v) || v);
+  }, [flatOptions, value]);
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -36,7 +45,7 @@ const MultiSelect = ({
   };
 
   const clearAll = () => onChange([]);
-  const selectAll = () => onChange(Array.from(new Set(options.map(o => o.value))));
+  const selectAll = () => onChange(Array.from(new Set(flatOptions.map((o) => o.value))));
 
   return (
     <div ref={rootRef} className={`input-group multiselect-wrapper ${fullWidth ? 'input-full-width' : ''}`}>
@@ -66,16 +75,34 @@ const MultiSelect = ({
           </div>
 
           <div className="multiselect-options">
-            {options.map((opt) => (
-              <label key={opt.value} className="multiselect-option">
-                <input
-                  type="checkbox"
-                  checked={selectedSet.has(opt.value)}
-                  onChange={() => toggleValue(opt.value)}
-                />
-                <span className="multiselect-option-label">{opt.label}</span>
-              </label>
-            ))}
+            {sections && sections.length > 0 ? (
+              sections.map((sec, si) => (
+                <div key={sec.groupLabel || si} className="multiselect-group">
+                  <div className="multiselect-group-title">{sec.groupLabel}</div>
+                  {(sec.options || []).map((opt) => (
+                    <label key={opt.value} className="multiselect-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(opt.value)}
+                        onChange={() => toggleValue(opt.value)}
+                      />
+                      <span className="multiselect-option-label">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ))
+            ) : (
+              options.map((opt) => (
+                <label key={opt.value} className="multiselect-option">
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(opt.value)}
+                    onChange={() => toggleValue(opt.value)}
+                  />
+                  <span className="multiselect-option-label">{opt.label}</span>
+                </label>
+              ))
+            )}
           </div>
         </div>
       )}

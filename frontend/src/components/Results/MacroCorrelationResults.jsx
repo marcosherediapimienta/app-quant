@@ -1,6 +1,11 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Card from '../Card/Card';
-import { getFactorDescription } from '../../utils/options';
+import {
+  getFactorDescription,
+  getFactorMetadata,
+  normalizeFactorId,
+  formatFactorCategoryLabel,
+} from '../../utils/options';
 import './Results.css';
 
 const MacroCorrelationResults = ({ data }) => {
@@ -19,16 +24,21 @@ const MacroCorrelationResults = ({ data }) => {
 
   if (Array.isArray(data.best_lagged_correlations)) {
     bestLaggedCorrelations = data.best_lagged_correlations;
-    correlationData = bestLaggedCorrelations.map(item => ({
-      factor: (item.factor || '').replace(/^\^/, ''),
-      correlation: item.corr || item.correlation || 0,
-      lag: item.lag || 0,
-      tStat: item.t || null,
-      pValue: item.p || null,
-      n: item.n || null,
-      isSignificant: item.is_significant || false,
-      description: getFactorDescription(item.factor),
-    })).filter(item => item.correlation !== 0 && !isNaN(item.correlation));
+    correlationData = bestLaggedCorrelations.map((item) => {
+      const raw = item.factor || '';
+      const canonical = normalizeFactorId(raw) || String(raw).replace(/^\^/, '');
+      return {
+        factor: String(canonical).replace(/^\^/, ''),
+        correlation: item.corr || item.correlation || 0,
+        lag: item.lag || 0,
+        tStat: item.t || null,
+        pValue: item.p || null,
+        n: item.n || null,
+        isSignificant: item.is_significant || false,
+        description: getFactorDescription(item.factor),
+        factorKind: formatFactorCategoryLabel(getFactorMetadata(raw)?.category),
+      };
+    }).filter(item => item.correlation !== 0 && !isNaN(item.correlation));
 
     if (correlationData.length > 0) {
       const lags = correlationData.map(d => d.lag).filter(l => l !== null && l !== undefined);
@@ -49,16 +59,20 @@ const MacroCorrelationResults = ({ data }) => {
       correlations = data.best_correlations;
     }
 
-    correlationData = Object.entries(correlations).map(([factor, value]) => ({
-      factor: factor.replace(/^\^/, ''),
-      correlation: typeof value === 'number' ? value : 0,
-      lag: null,
-      tStat: null,
-      pValue: null,
-      n: null,
-      isSignificant: null,
-      description: getFactorDescription(factor),
-    })).filter(item => item.correlation !== 0 && !isNaN(item.correlation));
+    correlationData = Object.entries(correlations).map(([factor, value]) => {
+      const canonical = normalizeFactorId(factor) || factor.replace(/^\^/, '');
+      return {
+        factor: String(canonical).replace(/^\^/, ''),
+        correlation: typeof value === 'number' ? value : 0,
+        lag: null,
+        tStat: null,
+        pValue: null,
+        n: null,
+        isSignificant: null,
+        description: getFactorDescription(factor),
+        factorKind: formatFactorCategoryLabel(getFactorMetadata(factor)?.category),
+      };
+    }).filter(item => item.correlation !== 0 && !isNaN(item.correlation));
 
     optimalLag = data.optimal_lag || data.best_lag || data.optimal_lag_value || data.lag || null;
   }
@@ -149,7 +163,8 @@ const MacroCorrelationResults = ({ data }) => {
           <table className="notebook-table-styled">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>Factor</th>
+                <th style={{ textAlign: 'left' }}>Factor (id)</th>
+                <th style={{ textAlign: 'left' }}>Tipo</th>
                 <th style={{ textAlign: 'left' }}>Description</th>
                 <th style={{ textAlign: 'right' }}>Corr</th>
                 <th style={{ textAlign: 'right' }}>Lag</th>
@@ -170,6 +185,7 @@ const MacroCorrelationResults = ({ data }) => {
                 return (
                   <tr key={idx}>
                     <td style={{ textAlign: 'left', fontWeight: '500' }}>{row.factor}</td>
+                    <td style={{ textAlign: 'left', fontSize: '0.8em', color: '#64748b' }}>{row.factorKind}</td>
                     <td style={{ textAlign: 'left', fontSize: '0.85em', color: '#666' }}>
                       {row.description}
                     </td>
