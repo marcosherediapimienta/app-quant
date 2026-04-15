@@ -64,7 +64,6 @@
   gap: var(--spacing-md);
 }
 
-/* Correlation tab: single integrated card */
 .correlation-workspace .form-grid {
   margin-bottom: 0;
 }

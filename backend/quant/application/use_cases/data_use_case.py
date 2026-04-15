@@ -9,6 +9,7 @@ import pandas as pd
 import yfinance as yf
 
 from quant.domain.pm.utils.data.components.data_loader import DataLoader
+from quant.domain.pm.utils.data.components.fx_usd_normalize import normalize_adj_close_to_usd
 
 warnings.filterwarnings('ignore', category=pd.errors.Pandas4Warning, module='yfinance')
 
@@ -44,6 +45,7 @@ def _resolve_dates(
 
 class DataUseCase:
     def __init__(self):
+        self.data_loader: Optional[DataLoader] = None
         try:
             self.data_loader = DataLoader()
             self.use_quant_loader = True
@@ -109,7 +111,9 @@ class DataUseCase:
                 f"for the period {start_date_str} to {end_date_str}"
             )
 
-        processed_data = self._process_data(data, tickers, data_type)
+        processed_data = self._process_data(
+            data, tickers, data_type, start_date_str, end_date_str,
+        )
 
         return {
             "data": processed_data,
@@ -196,7 +200,9 @@ class DataUseCase:
         logger.debug("download_macro_factors — available Yahoo factors: %s", available)
 
         try:
-            processed_data = self._process_data(data, available, 'prices')
+            processed_data = self._process_data(
+                data, available, 'prices', start_date_str, end_date_str,
+            )
         except Exception:
             logger.exception("Error processing Yahoo macro data")
             processed_data = {}
@@ -238,6 +244,8 @@ class DataUseCase:
         data: Union[pd.DataFrame, pd.Series],
         tickers: List[str],
         data_type: str,
+        start_date_str: str,
+        end_date_str: str,
     ) -> Dict:
         close_data = self._extract_close_prices(data)
 
@@ -245,6 +253,25 @@ class DataUseCase:
             close_data = close_data.to_frame(name=tickers[0] if len(tickers) == 1 else 'Close')
 
         close_data = self._map_ticker_columns(close_data, tickers)
+
+        if close_data is not None and not close_data.empty:
+            fx_loader = self.data_loader
+            if fx_loader is None:
+                try:
+                    fx_loader = DataLoader()
+                except Exception:
+                    fx_loader = None
+            if fx_loader is not None:
+                try:
+                    close_data = normalize_adj_close_to_usd(
+                        close_data,
+                        start_date_str,
+                        end_date_str,
+                        fx_loader,
+                        progress=False,
+                    )
+                except Exception as e:
+                    logger.warning("USD normalization skipped (Yahoo batch): %s", e)
 
         if data_type == 'returns':
             result_data = close_data.pct_change().dropna()

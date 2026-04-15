@@ -3,6 +3,12 @@ import io
 import logging
 import urllib.request
 import pandas as pd
+from quant.domain.pm.utils.data.components.data_loader import DataLoader
+from quant.domain.pm.utils.data.components.fx_usd_normalize import (
+    normalize_adj_close_to_usd,
+    normalize_close_series_to_usd,
+)
+
 from .macro_data_loader import MacroDataLoader
 from ..tools.config import MACRO_FACTORS, MACRO_CORE_FACTORS, FRED_FACTORS
 
@@ -20,6 +26,7 @@ class MacroDataDownloader:
         self.core_factors = core_factors if core_factors is not None else MACRO_CORE_FACTORS
         self.fred_factors = fred_factors if fred_factors is not None else FRED_FACTORS
         self.loader = MacroDataLoader()
+        self._pm_loader = DataLoader()
     
     def download_factors(
         self,
@@ -72,10 +79,27 @@ class MacroDataDownloader:
                     series = data.squeeze()
                 
                 if len(series) > 0:
+                    series = normalize_close_series_to_usd(
+                        series,
+                        ticker,
+                        start_date,
+                        end_date,
+                        self._pm_loader,
+                        progress=progress,
+                    )
                     series.name = name
                     results[name] = series
             else:
                 close_data = self._extract_close_prices(data)
+                if isinstance(close_data, pd.Series):
+                    close_data = close_data.to_frame(name=tickers[0])
+                close_data = normalize_adj_close_to_usd(
+                    close_data,
+                    start_date,
+                    end_date,
+                    self._pm_loader,
+                    progress=progress,
+                )
                 for ticker, name in ticker_to_name.items():
                     series = self._extract_series(close_data, ticker)
                     if len(series) > 0:
@@ -131,13 +155,22 @@ class MacroDataDownloader:
 
         if factor_name in self.factors_map:
             try:
+                y_ticker = self.factors_map[factor_name]
                 series = self.loader.download_single(
-                    self.factors_map[factor_name],
+                    y_ticker,
                     start_date,
                     end_date,
                     progress
                 )
                 if len(series) > 0:
+                    series = normalize_close_series_to_usd(
+                        series,
+                        y_ticker,
+                        start_date,
+                        end_date,
+                        self._pm_loader,
+                        progress=progress,
+                    )
                     series.name = factor_name
                     return series
             except Exception:
@@ -146,6 +179,15 @@ class MacroDataDownloader:
         logger.info(f"[Macro] Using {fallback_ticker} as fallback for {factor_name}")
         try:
             series = self.loader.download_single(fallback_ticker, start_date, end_date, progress)
+            if len(series) > 0:
+                series = normalize_close_series_to_usd(
+                    series,
+                    fallback_ticker,
+                    start_date,
+                    end_date,
+                    self._pm_loader,
+                    progress=progress,
+                )
             if normalize and len(series) > 0:
                 series = series / series.iloc[0] * 100.0
             series.name = factor_name
@@ -178,7 +220,6 @@ class MacroDataDownloader:
         start_date: str,
         end_date: str,
     ) -> pd.Series:
-        """Download a FRED series via public CSV (no API key)."""
         url = (
             f"https://fred.stlouisfed.org/graph/fredgraph.csv"
             f"?id={series_id}&cosd={start_date}&coed={end_date}"
