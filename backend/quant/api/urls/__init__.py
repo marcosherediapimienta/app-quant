@@ -14,6 +14,7 @@ urlpatterns = [
     # Macro
     path('macro/factors/', views.macro_analyze_factors, name='macro-factors'),
     path('macro/correlation/', views.macro_analyze_correlation, name='macro-correlation'),
+    path('macro/correlation-matrix/', views.macro_analyze_correlation_matrix, name='macro-correlation-matrix'),
     path('macro/situation/', views.macro_analyze_situation, name='macro-situation'),
 
     # Portfolio

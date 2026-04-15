@@ -3,6 +3,7 @@ from .data_views import download_sample_data, download_macro_factors
 from .macro_views import (
     macro_analyze_factors,
     macro_analyze_correlation,
+    macro_analyze_correlation_matrix,
     macro_analyze_situation,
 )
 from .portfolio_views import portfolio_analyze, portfolio_indices

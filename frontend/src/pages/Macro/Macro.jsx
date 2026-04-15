@@ -17,13 +17,21 @@ import Card from '../../components/Card/Card';
 import Tabs from '../../components/Tabs/Tabs';
 import MacroResults from '../../components/Results/MacroResults';
 import MacroCorrelationResults from '../../components/Results/MacroCorrelationResults';
+import MacroCorrelationMatrixResults from '../../components/Results/MacroCorrelationMatrixResults';
 import MacroSituationResults from '../../components/Results/MacroSituationResults';
 import './Macro.css';
+
+const MACRO_FACTOR_MULTI_SECTIONS = MACRO_FACTORS_OPTIONS_GROUPED.map((g) => ({
+  groupLabel: g.groupLabel,
+  options: g.options.map((o) => ({ value: o.value, label: o.label })),
+}));
 
 const Macro = () => {
   const [activeTab, setActiveTab] = useState('factors');
   const [tickerInput, setTickerInput] = useState('');
   const [selectedFactors, setSelectedFactors] = useState([]);
+  const [correlationMode, setCorrelationMode] = useState('portfolio');
+  const [matrixCorrMethod, setMatrixCorrMethod] = useState('pearson');
   
   const dataDownload = useDataDownload();
   const analysis = useAnalysis();
@@ -77,6 +85,20 @@ const Macro = () => {
     );
   };
 
+  const handleAnalyzeCorrelationMatrix = async () => {
+    await analysis.execute(async () => {
+      const tickers = selectedTickers();
+      if (tickers.length < 2) {
+        throw new Error('Select at least 2 macro factors for the all-to-all correlation matrix.');
+      }
+      const factorsData = await dataDownload.downloadMacroFactors(tickers, {});
+      const macroFactors = formatMacroFactorsForAPI(factorsData);
+      return macroService.analyzeCorrelationMatrix(macroFactors, {
+        correlationMethod: matrixCorrMethod,
+      });
+    });
+  };
+
   const handleAnalyzeSituation = async () => {
     const uniqueFactors = [...new Set([...selectedFactors, ...SITUATION_AUTO_FACTORS_CORE])];
     const uniqueTickers = [...new Set(uniqueFactors.map(factorIdToTicker))];
@@ -123,7 +145,7 @@ const Macro = () => {
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tab) => { analysis.reset(); setActiveTab(tab); }} />
 
-      {activeTab !== 'situation' && (
+      {activeTab === 'factors' && (
         <Card className="form-card">
           <div className="form-grid">
             <Select
@@ -132,7 +154,7 @@ const Macro = () => {
               onChange={(e) => setTickerInput(e.target.value)}
               options={[
                 { value: '', label: 'Select portfolio...', disabled: true },
-                ...PORTFOLIO_TICKER_OPTIONS
+                ...PORTFOLIO_TICKER_OPTIONS,
               ]}
               fullWidth
             />
@@ -140,12 +162,8 @@ const Macro = () => {
               label="Macro Factors"
               value={selectedFactors}
               onChange={setSelectedFactors}
-              sections={MACRO_FACTORS_OPTIONS_GROUPED.map((g) => ({
-                groupLabel: g.groupLabel,
-                options: g.options.map((o) => ({ value: o.value, label: o.label })),
-              }))}
+              sections={MACRO_FACTOR_MULTI_SECTIONS}
               placeholder="Select factors..."
-              helperText="Grouped: primary macro drivers vs benchmarks vs risk proxies. In Macro Situation, only the CORE factors are auto-loaded in addition to your selection."
               fullWidth
             />
           </div>
@@ -173,20 +191,125 @@ const Macro = () => {
         )}
 
         {activeTab === 'correlation' && (
-          <Card>
-            <div className="analysis-section">
-              <h2 className="section-title">Correlation Analysis</h2>
-              <p className="section-description">
-                Find optimal correlation between your portfolio and macro factors,
-                considering different time lags.
+          <Card className="form-card correlation-workspace">
+            <div className="analysis-section correlation-flow">
+              <header className="correlation-header">
+                <h2 className="section-title">Correlation</h2>
+              </header>
+
+              <div
+                className="correlation-segmented"
+                role="tablist"
+                aria-label="Correlation analysis type"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={correlationMode === 'portfolio'}
+                  className={`correlation-segment ${correlationMode === 'portfolio' ? 'correlation-segment--active' : ''}`}
+                  onClick={() => {
+                    setCorrelationMode('portfolio');
+                    analysis.reset();
+                  }}
+                >
+                  Portfolio vs factors
+                  <span className="correlation-segment-hint">Lags and best fit</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={correlationMode === 'matrix'}
+                  className={`correlation-segment ${correlationMode === 'matrix' ? 'correlation-segment--active' : ''}`}
+                  onClick={() => {
+                    setCorrelationMode('matrix');
+                    analysis.reset();
+                  }}
+                >
+                  Factor matrix
+                </button>
+              </div>
+
+              <div
+                className={`form-grid correlation-inputs${correlationMode === 'matrix' ? ' correlation-inputs--matrix-only' : ''}`}
+              >
+                {correlationMode === 'portfolio' && (
+                  <Select
+                    label="Portfolio"
+                    value={tickerInput}
+                    onChange={(e) => setTickerInput(e.target.value)}
+                    options={[
+                      { value: '', label: 'Select portfolio…', disabled: true },
+                      ...PORTFOLIO_TICKER_OPTIONS,
+                    ]}
+                    fullWidth
+                  />
+                )}
+                <div className="correlation-factors-field">
+                  <MultiSelect
+                    label="Macro factors"
+                    value={selectedFactors}
+                    onChange={setSelectedFactors}
+                    sections={MACRO_FACTOR_MULTI_SECTIONS}
+                    placeholder="Select factors…"
+                    helperText={
+                      correlationMode === 'matrix'
+                        ? 'Choose at least two series.'
+                        : 'Factors to compare against your portfolio returns.'
+                    }
+                    fullWidth
+                  />
+                </div>
+              </div>
+
+              {correlationMode === 'matrix' && (
+                <div className="correlation-matrix-method" role="group" aria-label="Matrix correlation coefficient">
+                  <span className="correlation-matrix-method-label">Coefficient</span>
+                  <div className="correlation-segmented correlation-segmented--inline">
+                    <button
+                      type="button"
+                      className={`correlation-segment ${matrixCorrMethod === 'pearson' ? 'correlation-segment--active' : ''}`}
+                      aria-pressed={matrixCorrMethod === 'pearson'}
+                      onClick={() => {
+                        setMatrixCorrMethod('pearson');
+                        analysis.reset();
+                      }}
+                    >
+                      Pearson
+                    </button>
+                    <button
+                      type="button"
+                      className={`correlation-segment ${matrixCorrMethod === 'spearman' ? 'correlation-segment--active' : ''}`}
+                      aria-pressed={matrixCorrMethod === 'spearman'}
+                      onClick={() => {
+                        setMatrixCorrMethod('spearman');
+                        analysis.reset();
+                      }}
+                    >
+                      Spearman
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <p className="correlation-footnote">
+                {correlationMode === 'portfolio'
+                  ? 'Uses your portfolio return series and macro factor returns, including lag search for the strongest linear association.'
+                  : matrixCorrMethod === 'spearman'
+                    ? ''
+                    : ''}
               </p>
-              <Button 
-                onClick={handleAnalyzeCorrelation}
+
+              <Button
+                onClick={
+                  correlationMode === 'portfolio'
+                    ? handleAnalyzeCorrelation
+                    : handleAnalyzeCorrelationMatrix
+                }
                 variant="primary"
                 size="lg"
                 fullWidth
               >
-                Analyze Correlation
+                {correlationMode === 'portfolio' ? 'Run correlation analysis' : 'Build correlation matrix'}
               </Button>
             </div>
           </Card>
@@ -225,7 +348,12 @@ const Macro = () => {
             </Button>
           </div>
           {activeTab === 'factors' && <MacroResults data={analysis.result} />}
-          {activeTab === 'correlation' && <MacroCorrelationResults data={analysis.result} />}
+          {activeTab === 'correlation' &&
+            (analysis.result?.analysis_mode === 'correlation_matrix_log_returns' ? (
+              <MacroCorrelationMatrixResults data={analysis.result} />
+            ) : (
+              <MacroCorrelationResults data={analysis.result} />
+            ))}
           {activeTab === 'situation' && <MacroSituationResults data={analysis.result} />}
         </div>
       )}

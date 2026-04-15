@@ -16,6 +16,7 @@ def api_root(request):
             "macro": {
                 "factors": "/api/v1/macro/factors/",
                 "correlation": "/api/v1/macro/correlation/",
+                "correlation_matrix": "/api/v1/macro/correlation-matrix/",
                 "situation": "/api/v1/macro/situation/",
             },
             "portfolio": {

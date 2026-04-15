@@ -64,6 +64,113 @@
   gap: var(--spacing-md);
 }
 
+/* Correlation tab: single integrated card */
+.correlation-workspace .form-grid {
+  margin-bottom: 0;
+}
+
+.correlation-flow {
+  gap: var(--spacing-lg);
+}
+
+.correlation-header {
+  margin: 0;
+}
+
+.correlation-header-lead {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.correlation-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: var(--border-radius-lg);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+.correlation-segment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  border-radius: calc(var(--border-radius-lg) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.25;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.correlation-segment:hover:not(.correlation-segment--active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.correlation-segment--active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.correlation-segment-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  opacity: 0.92;
+}
+
+.correlation-segment--active .correlation-segment-hint {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.correlation-inputs--matrix-only .correlation-factors-field {
+  grid-column: 1 / -1;
+}
+
+.correlation-footnote {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.correlation-matrix-method {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+
+.correlation-matrix-method-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.correlation-segmented--inline {
+  flex: 1;
+  min-width: min(100%, 320px);
+  max-width: 400px;
+}
+
 .section-title {
   font-size: 1.25rem;
   font-weight: 600;
@@ -111,5 +218,11 @@
   .form-grid {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 520px) {
+  .correlation-segmented {
+    grid-template-columns: 1fr;
   }
 }
