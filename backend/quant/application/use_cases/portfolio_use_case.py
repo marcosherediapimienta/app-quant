@@ -10,9 +10,9 @@ _INDEX_LABELS = {
     'SP500': 'S&P 500 · ~500 companies (USD)',
     'NASDAQ100': 'NASDAQ 100 · ~100 companies (USD)',
     'DOW30': 'Dow Jones 30 · ~30 companies (USD)',
-    'IBEX35': 'IBEX 35 · ~35 companies (EUR)',
-    'EUROSTOXX50': 'EURO STOXX 50 · ~50 companies (EUR)',
-    'NIKKEI225': 'Nikkei 225 · ~225 companies (JPY)',
+    'IBEX35': 'IBEX 35 · ~35 companies (USD)',
+    'EUROSTOXX50': 'EURO STOXX 50 · ~50 companies (USD)',
+    'NIKKEI225': 'Nikkei 225 · ~225 companies (USD)',
     'MSCI_WORLD': 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)',
 }
 

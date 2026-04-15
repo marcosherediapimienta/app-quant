@@ -1,5 +1,5 @@
 from .general import ANALYSIS_DATES
-from .indices import SP500_FALLBACK, IBEX_35, EUROSTOXX_50, NIKKEI_225
+from .indices import SP500_FALLBACK, NASDAQ100_FALLBACK, IBEX_35, EUROSTOXX_50, NIKKEI_225
 
 PORTFOLIO_CONFIG = {
     'selection': {
@@ -129,6 +129,7 @@ INDEX_CONFIG = {
     },
     'fallback': {
         'sp500': SP500_FALLBACK,
+        'nasdaq100': NASDAQ100_FALLBACK,
         'ibex35': IBEX_35,
         'eurostoxx50': EUROSTOXX_50,
         'nikkei225': NIKKEI_225,
