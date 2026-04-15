@@ -1,11 +1,16 @@
+const COMMON_TICKER_TYPOS = {
+  APPL: 'AAPL',
+};
+
 export const parseTickers = (tickerString) => {
   if (!tickerString || typeof tickerString !== 'string') {
     return [];
   }
   return tickerString
     .split(',')
-    .map(t => t.trim().toUpperCase())
-    .filter(t => t.length > 0);
+    .map((t) => t.trim().toUpperCase())
+    .filter((t) => t.length > 0)
+    .map((t) => COMMON_TICKER_TYPOS[t] || t);
 };
 
 

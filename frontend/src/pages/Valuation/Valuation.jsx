@@ -11,16 +11,23 @@ import Tabs from '../../components/Tabs/Tabs';
 import ValuationResults from '../../components/Results/ValuationResults';
 import './Valuation.css';
 
+const DEFAULT_LOADING_MSG = 'Analyzing valuation…';
+
+const SIGNALS_LOADING_MSG =
+  'Generating signals';
+
 const Valuation = () => {
   const [ticker, setTicker] = useState('');
   const [tickersInput, setTickersInput] = useState('');
   const [activeTab, setActiveTab] = useState('company');
-  
+  const [loadingMessage, setLoadingMessage] = useState(DEFAULT_LOADING_MSG);
+
   const analysis = useAnalysis();
 
   useEffect(() => {
     if (!analysis.loading) {
       analysis.reset();
+      setLoadingMessage(DEFAULT_LOADING_MSG);
     }
   }, [activeTab]);
 
@@ -30,23 +37,27 @@ const Valuation = () => {
     { id: 'signals', label: 'Signals' },
   ];
 
-  const handleAnalyzeCompany = () =>
-    analysis.execute(() => valuationService.analyzeCompany(ticker));
+  const handleAnalyzeCompany = () => {
+    setLoadingMessage(DEFAULT_LOADING_MSG);
+    return analysis.execute(() => valuationService.analyzeCompany(ticker));
+  };
 
   const handleCompare = () => {
     const tickers = parseTickers(tickersInput);
     if (tickers.length === 0) return;
+    setLoadingMessage(DEFAULT_LOADING_MSG);
     return analysis.execute(() => valuationService.compare(tickers));
   };
 
   const handleGenerateSignals = () => {
     const tickers = parseTickers(tickersInput);
     if (tickers.length === 0) return;
+    setLoadingMessage(SIGNALS_LOADING_MSG);
     return analysis.execute(() => valuationService.generateSignals(tickers));
   };
 
   if (analysis.loading) {
-    return <Loading message="Analyzing valuation..." />;
+    return <Loading message={loadingMessage} />;
   }
 
   return (
@@ -128,7 +139,8 @@ const Valuation = () => {
             <div className="analysis-section">
               <h2 className="section-title">Generate Recommendations</h2>
               <p className="section-description">
-                Get buy, sell, or hold recommendations with confidence levels based on comprehensive valuation and fundamental analysis.
+                Buy, hold, or sell recommendations from fundamentals and valuation. Each ticker triggers several Yahoo
+                downloads; with many symbols the run can take several minutes.
               </p>
               <div className="form-grid">
                 <Input
@@ -136,7 +148,7 @@ const Valuation = () => {
                   value={tickersInput}
                   onChange={(e) => setTickersInput(e.target.value.toUpperCase())}
                   placeholder="Insert tickers..."
-                  helperText="Example: AAPL, GOOGL, MSFT, AMZN"
+                  helperText="Example: AAPL, MSFT."
                   fullWidth
                 />
               </div>

@@ -60,7 +60,13 @@ class DataUseCase:
     ) -> pd.DataFrame:
         if self.use_quant_loader:
             return self.data_loader.download(tickers, start_date_str, end_date_str, progress=False)
-        return yf.download(tickers, start=start_date_str, end=end_date_str, progress=False)
+        return yf.download(
+            tickers,
+            start=start_date_str,
+            end=end_date_str,
+            progress=False,
+            threads=len(tickers) > 1,
+        )
 
     @staticmethod
     def _download_fred_series(
