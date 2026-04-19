@@ -30,6 +30,35 @@ _SCORING_SPECS = [
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_yahoo_growth_ratio(v: float) -> float:
+    """
+    Map Yahoo growth fields to a **ratio** (0.116 = 11.6%, 1.71 = 171%).
+
+    Yahoo / yfinance sometimes returns:
+    - fraction: 0.116, 1.71, -0.05
+    - percent points: 11.6, 55, 171 (integer or 11.6)
+
+    Scoring thresholds assume ratio form (see SCORING_RANGES / classify_metric).
+    """
+    if pd.isna(v):
+        return v
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return v
+    if not np.isfinite(v):
+        return v
+    av = abs(v)
+    if av > 1000:
+        return v
+    if av > 100:
+        return v / 100.0
+    if 2.0 <= av <= 100.0:
+        return v / 100.0
+    return v
+
+
 class GrowthMetrics:
     def __init__(self, thresholds: GrowthThresholds = None):
         self.thresholds = thresholds or GrowthThresholds()
@@ -52,10 +81,14 @@ class GrowthMetrics:
     
     def calculate(self, data: Mapping[str, Any]) -> Dict[str, Any]:
         self._validate_scoring_config()
-        revenue_growth = nan_if_missing(data.get('revenueGrowth'))
-        earnings_growth = nan_if_missing(data.get('earningsGrowth'))
-        earnings_quarterly_growth = nan_if_missing(data.get('earningsQuarterlyGrowth'))
-        revenue_per_share_growth = nan_if_missing(data.get('revenuePerShareGrowth'))
+        revenue_growth = _normalize_yahoo_growth_ratio(nan_if_missing(data.get('revenueGrowth')))
+        earnings_growth = _normalize_yahoo_growth_ratio(nan_if_missing(data.get('earningsGrowth')))
+        earnings_quarterly_growth = _normalize_yahoo_growth_ratio(
+            nan_if_missing(data.get('earningsQuarterlyGrowth'))
+        )
+        revenue_per_share_growth = _normalize_yahoo_growth_ratio(
+            nan_if_missing(data.get('revenuePerShareGrowth'))
+        )
         
         metrics = {
             'revenue_growth_yoy': revenue_growth,

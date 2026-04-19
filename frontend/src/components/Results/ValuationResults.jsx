@@ -70,10 +70,19 @@ const MONETARY_METRICS = [
   'total_revenue', 'total_assets', 'market_cap', 'revenue_per_employee',
 ];
 
-const formatMetricValue = (key, value) => {
+const formatMetricValue = (key, value, categoryContext = '') => {
   if (value == null) return 'N/A';
-  if (typeof value !== 'number') return value;
   const lk = key.toLowerCase();
+  const cat = String(categoryContext).toLowerCase();
+  /* Ratios (0.078 = 7.8%). Also scope by category so any future Growth metric key still formats as %. */
+  const asGrowthRatio =
+    lk.includes('growth') || cat === 'growth';
+  if (asGrowthRatio) {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(n)) return (n * 100).toFixed(2) + '%';
+    return String(value);
+  }
+  if (typeof value !== 'number') return value;
   if (['margin', 'yield'].some(m => lk.includes(m)) && Math.abs(value) <= 1.5)
     return (value * 100).toFixed(2) + '%';
   if (RATIO_METRICS.some(m => lk.includes(m))) {
@@ -122,15 +131,32 @@ const getProfileShort = (scores) => {
   return { label: label.split(' / ')[0], icon, color };
 };
 
+/** Shape returned by POST /valuation/signals/: ticker -> signal row or { error }. */
+const isValuationSignalsEntry = (item) => {
+  if (!item || typeof item !== 'object') return false;
+  if (
+    (item.scores || item.conclusion) &&
+    item.signal === undefined &&
+    item.error === undefined
+  ) {
+    return false;
+  }
+  return (
+    item.signal !== undefined ||
+    item.confidence !== undefined ||
+    item.price_target !== undefined ||
+    item.error !== undefined ||
+    item.valuation_score !== undefined ||
+    item.fundamental_score !== undefined
+  );
+};
+
 const ValuationResults = ({ data }) => {
   if (!data) return null;
-  const isSignals = !data.ticker && !data.scores && !data.individual_results && 
+  const isSignals = !data.ticker && !data.scores && !data.individual_results &&
     Object.keys(data).length > 0 &&
-    Object.values(data).every(item => 
-      item && typeof item === 'object' && 
-      (item.signal !== undefined || item.confidence !== undefined || item.price_target !== undefined)
-    ) &&
-    !Object.values(data).some(item => 
+    Object.values(data).every(isValuationSignalsEntry) &&
+    !Object.values(data).some(item =>
       item && typeof item === 'object' && (item.scores || item.conclusion) && !item.signal
     );
 
@@ -236,7 +262,7 @@ const ValuationResults = ({ data }) => {
               <div className="summary-item" key={key}>
                 <span className="summary-label">{label}</span>
                 <span className="summary-value">
-                  {formatMetricValue(key, value)}
+                  {formatMetricValue(key, value, categoryKey)}
                 </span>
                 {classification && (
                   <span style={{
@@ -1273,7 +1299,7 @@ const ComparisonView = ({ data }) => {
                           const value = categoryData?.metrics?.[metricKey];
                           return (
                             <td key={idx} className="numeric">
-                              {formatMetricValue(metricKey, value)}
+                              {formatMetricValue(metricKey, value, categoryKey)}
                             </td>
                           );
                         })}
@@ -1291,6 +1317,10 @@ const ComparisonView = ({ data }) => {
 };
 
 const SignalsView = ({ data }) => {
+  const signalErrors = Object.entries(data)
+    .filter(([, value]) => value && typeof value === 'object' && value.error)
+    .map(([key, value]) => ({ ticker: key, message: String(value.error) }));
+
   const signals = Object.entries(data)
     .filter(([key, value]) => value && typeof value === 'object' && !value.error)
     .map(([key, value]) => ({
@@ -1331,14 +1361,31 @@ const SignalsView = ({ data }) => {
 
   const sortedSignals = [...signals].sort((a, b) => normUpside(b.upside_potential) - normUpside(a.upside_potential));
 
+  const totalRequested = signals.length + signalErrors.length;
+
   return (
     <div className="results-container">
+      {signalErrors.length > 0 && (
+        <Card className="result-summary-card" style={{ marginBottom: 'var(--spacing-md)', borderColor: '#fecaca', background: '#fef2f2' }}>
+          <h3 className="result-section-title" style={{ color: '#b91c1c' }}>Tickers with no result</h3>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: 'var(--spacing-md)' }}>
+            The backend returned an error for {signalErrors.length === 1 ? 'this symbol' : 'these symbols'} (invalid
+            symbol, missing data, or timeout). Fix the ticker and try again.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#1e293b', fontSize: '0.9rem' }}>
+            {signalErrors.map((e) => (
+              <li key={e.ticker}><strong>{e.ticker}</strong>: {e.message}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {/* Signal Summary */}
       <Card className="result-summary-card notebook-style">
         <h3 className="notebook-section-title">SIGNAL SUMMARY</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
           {[
-            { label: 'Total Analyzed', value: signals.length, color: '#1e293b', icon: '📊' },
+            { label: 'Total Analyzed', value: totalRequested, color: '#1e293b', icon: '📊' },
             { label: 'Buy Signals', value: buySignals.length, color: '#10b981', icon: '🟢' },
             { label: 'Hold Signals', value: holdSignals.length, color: '#f59e0b', icon: '🟡' },
             { label: 'Sell Signals', value: sellSignals.length, color: '#ef4444', icon: '🔴' },
@@ -1358,6 +1405,14 @@ const SignalsView = ({ data }) => {
 
         {/* Dynamic insight */}
         {(() => {
+          if (signals.length === 0) {
+            return signalErrors.length > 0 ? (
+              <div className="insight-callout callout-warning">
+                No valid signals were generated. Check the failed tickers above or try again.
+              </div>
+            ) : null;
+          }
+
           const parts = [];
           let calloutType = '';
           if (buySignals.length > sellSignals.length) {

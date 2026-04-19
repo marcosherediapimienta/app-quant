@@ -1,8 +1,33 @@
+import logging
+import os
+import time
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
 from typing import Dict, List, Optional, Sequence
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+
+def _is_transient_yahoo_fetch_error(message: str) -> bool:
+    m = (message or "").lower()
+    needles = (
+        "timed out",
+        "timeout",
+        "curl: (28)",
+        "operation timed out",
+        "0 bytes",
+        "connection reset",
+        "remote end closed",
+        "connection aborted",
+        "temporarily unavailable",
+        "too many requests",
+        "429",
+        "failed to perform",
+    )
+    return any(n in m for n in needles)
 
 import warnings
 try:
@@ -110,15 +135,15 @@ class CompanyAnalyzer:
             'valuation': ValuationMultiples(valuation_thresholds),
         }
 
-    def fetch_data(self, ticker: str) -> Dict:
+    def _fetch_data_once(self, ticker: str) -> Dict:
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
-            
+
             if not info or len(info) == 0:
                 return {
                     'success': False,
-                    'error': f'Could not retrieve data for {ticker}'
+                    'error': f'Could not retrieve data for {ticker}',
                 }
 
             try:
@@ -128,21 +153,46 @@ class CompanyAnalyzer:
                 self._enrich_from_income_stmt(info, income_stmt)
                 self._enrich_roic(info, balance_sheet, income_stmt)
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(
-                    f"Could not retrieve financial statements for {ticker}: {e}"
-                )
-            
+                logger.warning("Could not retrieve financial statements for %s: %s", ticker, e)
+
             return {
                 'success': True,
                 'data': info,
-                'ticker': ticker
+                'ticker': ticker,
             }
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Error fetching data for {ticker}: {e}'
+                'error': f'Error fetching data for {ticker}: {e}',
             }
+
+    def fetch_data(self, ticker: str) -> Dict:
+        """Retries a few times on Yahoo timeouts / empty responses (curl 28, 0 bytes, etc.)."""
+        try:
+            max_attempts = max(1, min(int(os.getenv("YFINANCE_FETCH_RETRIES", "3")), 8))
+        except ValueError:
+            max_attempts = 3
+
+        last: Dict = {'success': False, 'error': 'unknown'}
+        for attempt in range(max_attempts):
+            last = self._fetch_data_once(ticker)
+            if last.get('success'):
+                return last
+            err = last.get('error', '')
+            if attempt < max_attempts - 1 and _is_transient_yahoo_fetch_error(err):
+                delay = 4 + attempt * 3
+                logger.warning(
+                    "Yahoo fetch failed for %s (attempt %s/%s), retrying in %ss: %s",
+                    ticker,
+                    attempt + 1,
+                    max_attempts,
+                    delay,
+                    err[:200],
+                )
+                time.sleep(delay)
+                continue
+            return last
+        return last
             
     @staticmethod
     def _safe_float(df: 'pd.DataFrame', field: str, column) -> Optional[float]:

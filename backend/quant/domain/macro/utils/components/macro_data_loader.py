@@ -16,6 +16,7 @@ class MacroDataLoader:
         progress: bool = False
     ) -> pd.DataFrame:
 
+        use_threads = len(tickers) > 1
         try:
             data = yf.download(
                 tickers,
@@ -23,16 +24,28 @@ class MacroDataLoader:
                 end=end_date,
                 progress=progress,
                 auto_adjust=True,
-                threads=True
+                threads=use_threads,
             )
-            
-            if data.empty:
-                raise ValueError("No data downloaded")
-            
-            return data
-            
         except Exception as e:
-            raise RuntimeError(f"Download error: {e}")
+            if use_threads:
+                try:
+                    data = yf.download(
+                        tickers,
+                        start=start_date,
+                        end=end_date,
+                        progress=False,
+                        auto_adjust=True,
+                        threads=False,
+                    )
+                except Exception as e2:
+                    raise RuntimeError(f"Download error: {e2}") from e2
+            else:
+                raise RuntimeError(f"Download error: {e}") from e
+
+        if data.empty:
+            raise ValueError("No data downloaded")
+
+        return data
     
     def download_single(
         self,

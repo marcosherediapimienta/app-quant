@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { riskService } from '../../services/riskService';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import { parseTickers } from '../../utils/formatters';
+import { CAPM_BENCHMARK_SELECT_OPTIONS } from '../../utils/options';
+import { yahooTickerToRiskBenchmarkKey } from '../../utils/benchmarkOptions';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -44,6 +46,15 @@ const Risk = () => {
         throw new Error('Please enter at least one ticker');
       }
 
+      if (!benchmarkName?.trim()) {
+        throw new Error('Please select a benchmark');
+      }
+
+      const riskBenchmarkKey = yahooTickerToRiskBenchmarkKey(benchmarkName);
+      if (!riskBenchmarkKey) {
+        throw new Error('Unsupported benchmark for risk analysis');
+      }
+
       const weights = calculateWeights(tickers.length);
       const riskFreeRateValue = parseFloat(riskFreeRate);
       const confidenceLevelValue = parseFloat(confidenceLevel);
@@ -58,7 +69,7 @@ const Risk = () => {
 
       await analysis.execute(() =>
         riskService.analyzeComplete(
-          tickers, benchmarkName,
+          tickers, riskBenchmarkKey,
           startDate || undefined, endDate || undefined,
           weights, riskFreeRateValue, confidenceLevelValue
         )
@@ -105,17 +116,7 @@ const Risk = () => {
               label="Benchmark"
               value={benchmarkName}
               onChange={(e) => setBenchmarkName(e.target.value)}
-              options={[
-                { value: '', label: 'Select benchmark...', disabled: true },
-                { value: 'SP500', label: 'S&P 500 (USD)' },
-                { value: 'NASDAQ100', label: 'NASDAQ 100 (USD)',},
-                { value: 'DOW30', label: 'Dow Jones 30 (USD)' },
-                { value: 'RUSSELL2000', label: 'Russell 2000 (USD)' },
-                { value: 'MSCI_WORLD', label: 'MSCI World (USD)' },
-                { value: 'EUROSTOXX50', label: 'Euro Stoxx 50 (USD)' },
-                { value: 'NIKKEI225', label: 'Nikkei 225 (USD)' },
-                { value: 'IBEX35', label: 'IBEX 35 (USD)' },
-              ]}
+              options={CAPM_BENCHMARK_SELECT_OPTIONS}
               helperText="Reference index for comparison"
               fullWidth
             />

@@ -7,6 +7,15 @@ import {
   MACRO_FACTORS_OPTIONS_GROUPED,
   PORTFOLIO_TICKER_OPTIONS,
   SITUATION_AUTO_FACTORS_CORE,
+  SITUATION_YIELD_CURVE_FACTORS,
+  SITUATION_GLOBAL_BOND_FACTORS,
+  SITUATION_CREDIT_LIQUIDITY_FACTORS,
+  SITUATION_INFLATION_STRIP,
+  SITUATION_INFLATION_STRIP_FULL,
+  extractPriceForFactorFromRow,
+  mergeMacroFactorPayloads,
+  payloadHasTickerSeries,
+  getFactorMetadata,
 } from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
 import Error from '../../components/Error/Error';
@@ -100,27 +109,53 @@ const Macro = () => {
   };
 
   const handleAnalyzeSituation = async () => {
-    const uniqueFactors = [...new Set([...selectedFactors, ...SITUATION_AUTO_FACTORS_CORE])];
-    const uniqueTickers = [...new Set(uniqueFactors.map(factorIdToTicker))];
+    const uniqueFactors = [
+      ...new Set([
+        ...selectedFactors,
+        ...SITUATION_AUTO_FACTORS_CORE,
+        ...SITUATION_YIELD_CURVE_FACTORS,
+        ...SITUATION_GLOBAL_BOND_FACTORS,
+        ...SITUATION_CREDIT_LIQUIDITY_FACTORS,
+        ...SITUATION_INFLATION_STRIP,
+      ]),
+    ];
+    const factorIdToTickerCanonical = (factorId) =>
+      getFactorMetadata(factorId)?.ticker ?? factorIdToTicker(factorId);
+
+    const uniqueTickers = [...new Set(uniqueFactors.map(factorIdToTickerCanonical))];
 
     const factorsData = await dataDownload.downloadMacroFactors(uniqueTickers, {});
-    const factorsDataFormatted = formatMacroFactorsForAPI(factorsData);
+    let factorsDataFormatted = formatMacroFactorsForAPI(factorsData);
+
+    const inflationTickersToEnsure = [
+      ...new Set(
+        SITUATION_INFLATION_STRIP_FULL.map((id) => getFactorMetadata(id)?.ticker).filter(Boolean),
+      ),
+    ];
+    const missingInflationTickers = inflationTickersToEnsure.filter(
+      (t) => !payloadHasTickerSeries(factorsDataFormatted, t),
+    );
+    if (missingInflationTickers.length > 0) {
+      const extraRaw = await dataDownload.downloadMacroFactors(missingInflationTickers, {});
+      factorsDataFormatted = mergeMacroFactorPayloads(
+        factorsDataFormatted,
+        formatMacroFactorsForAPI(extraRaw),
+      );
+    }
+
     const dates = Object.keys(factorsDataFormatted);
 
     const factorsDict = {};
-    uniqueFactors.forEach(factor => {
-      const ticker = factorIdToTicker(factor);
+    uniqueFactors.forEach((factor) => {
       const factorData = {};
-      dates.forEach(date => {
-        if (factorsDataFormatted[date]?.[ticker] !== undefined) {
-          factorData[date] = factorsDataFormatted[date][ticker];
-        }
+      dates.forEach((date) => {
+        const v = extractPriceForFactorFromRow(factorsDataFormatted[date], factor);
+        if (v !== undefined) factorData[date] = v;
       });
       if (Object.keys(factorData).length > 0) {
         factorsDict[factor] = factorData;
       }
     });
-
 
     await analysis.execute(() => macroService.analyzeSituation(factorsDict));
   };

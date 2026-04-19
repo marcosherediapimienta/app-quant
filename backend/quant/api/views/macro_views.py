@@ -274,6 +274,8 @@ def macro_analyze_situation(request):
         try:
             series = pd.Series(v)
             series.index = pd.to_datetime(series.index)
+            series = series.sort_index()
+            series = series.dropna()
             if len(series) > 0 and not series.isna().all():
                 factors_dict[k] = series
             else:

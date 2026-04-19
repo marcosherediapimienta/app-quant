@@ -17,7 +17,9 @@ logger = logging.getLogger('quant.application.data')
 
 FRED_TICKER_PREFIX = 'FRED:'
 DEFAULT_LOOKBACK_DAYS = 365
-FRED_TIMEOUT = 15
+# Macro Situation needs ~252 trading days for 1Y % change; 365 calendar days is often slightly short.
+DEFAULT_MACRO_LOOKBACK_DAYS = 450
+FRED_TIMEOUT = 45
 PRICE_COLUMNS = ('Close', 'Adj Close')
 
 
@@ -60,7 +62,13 @@ class DataUseCase:
     ) -> pd.DataFrame:
         if self.use_quant_loader:
             return self.data_loader.download(tickers, start_date_str, end_date_str, progress=False)
-        return yf.download(tickers, start=start_date_str, end=end_date_str, progress=False)
+        return yf.download(
+            tickers,
+            start=start_date_str,
+            end=end_date_str,
+            progress=False,
+            threads=len(tickers) > 1,
+        )
 
     @staticmethod
     def _download_fred_series(
@@ -133,7 +141,9 @@ class DataUseCase:
         if factors is None:
             factors = ['^VIX', '^TNX']
 
-        start_date_str, end_date_str = _resolve_dates(start_date, end_date)
+        start_date_str, end_date_str = _resolve_dates(
+            start_date, end_date, lookback_days=DEFAULT_MACRO_LOOKBACK_DAYS,
+        )
 
         fred_factors = []
         yahoo_factors = []

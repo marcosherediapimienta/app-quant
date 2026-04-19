@@ -1,6 +1,6 @@
 export const PORTFOLIO_TICKER_OPTIONS = [
   { value: '^GSPC', label: '^GSPC - S&P 500 Index (USD)' },
-  { value: '^IXIC', label: '^IXIC - NASDAQ Index (USD)' },
+  { value: '^IXIC', label: '^IXIC - Nasdaq Composite Index (USD)' },
   { value: '^DJI', label: '^DJI - Dow Jones Industrial Average Index (USD)' },
   { value: '^RUA', label: '^RUA - Russell 3000 Index (USD)' },
   { value: '^IBEX', label: '^IBEX - IBEX 35 Index (EUR)' },
@@ -8,6 +8,11 @@ export const PORTFOLIO_TICKER_OPTIONS = [
   { value: '^N225', label: '^N225 - Nikkei 225 Index (JPY)' },
   { value: '^990100-USD-STRD', label: '^990100-USD-STRD - MSCI World Index (USD)' },
   { value: '000001.SS', label: '000001.SS - Shanghai Composite Index (CNY)' },
+];
+
+export const CAPM_BENCHMARK_SELECT_OPTIONS = [
+  { value: '', label: 'Select benchmark...', disabled: true },
+  ...PORTFOLIO_TICKER_OPTIONS,
 ];
 
 export {
@@ -25,6 +30,14 @@ export {
   SITUATION_AUTO_FACTORS,
   SITUATION_AUTO_FACTORS_CORE,
   SITUATION_AUTO_FACTORS_EXTENDED,
+  SITUATION_YIELD_CURVE_FACTORS,
+  SITUATION_GLOBAL_BOND_FACTORS,
+  SITUATION_CREDIT_LIQUIDITY_FACTORS,
+  SITUATION_INFLATION_STRIP,
+  SITUATION_INFLATION_STRIP_FULL,
+  extractPriceForFactorFromRow,
+  mergeMacroFactorPayloads,
+  payloadHasTickerSeries,
   DERIVED_FACTOR_SPECS,
   listFactorsByFilter,
   groupFactorsByFamily,

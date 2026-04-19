@@ -71,11 +71,17 @@ const classificationScore = (cls) =>
 const correlationColor = (v) =>
   v > 0.7 ? '#10b981' : v > 0.3 ? '#3b82f6' : v > -0.3 ? '#f59e0b' : '#ef4444';
 
-const formatMetricValue = (key, value) => {
+const formatMetricValue = (key, value, categoryContext = '') => {
   if (value == null) return 'N/A';
-  if (typeof value !== 'number') return value;
-
   const k = key.toLowerCase();
+  const cat = String(categoryContext).toLowerCase();
+  const asGrowthRatio = k.includes('growth') || cat === 'growth';
+  if (asGrowthRatio) {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(n)) return (n * 100).toFixed(2) + '%';
+    return String(value);
+  }
+  if (typeof value !== 'number') return value;
 
   if (PERCENTAGE_KEYWORDS.some(m => k.includes(m)) && Math.abs(value) <= 1.5)
     return (value * 100).toFixed(2) + '%';
@@ -89,7 +95,7 @@ const formatMetricValue = (key, value) => {
     return formatLargeNumber(value);
 
   if (Math.abs(value) < 1 && Math.abs(value) > 0) {
-    if (['ratio', 'yield', 'margin', 'growth', 'ro'].some(m => k.includes(m)))
+    if (['ratio', 'yield', 'margin', 'ro'].some(m => k.includes(m)))
       return (value * 100).toFixed(2) + '%';
     return value.toFixed(4);
   }
@@ -523,7 +529,7 @@ const PortfolioResults = ({ data }) => {
                       return (
                         <div className="summary-item" key={key}>
                           <span className="summary-label">{label}</span>
-                          <span className="summary-value">{formatMetricValue(key, value)}</span>
+                          <span className="summary-value">{formatMetricValue(key, value, categoryKey)}</span>
                           {cls && (
                             <span className="classification-badge" style={{
                               backgroundColor: scoreColor(clsScore) + '20',

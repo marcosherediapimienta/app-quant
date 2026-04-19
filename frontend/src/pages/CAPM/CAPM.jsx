@@ -3,7 +3,7 @@ import { capmService } from '../../services/capmService';
 import { useDataDownload } from '../../hooks/useDataDownload';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import { parseTickers, formatReturnsForAPI } from '../../utils/formatters';
-import { PORTFOLIO_TICKER_OPTIONS } from '../../utils/options';
+import { CAPM_BENCHMARK_SELECT_OPTIONS } from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
 import ErrorDisplay from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
@@ -183,13 +183,10 @@ const CAPM = () => {
                   fullWidth
                 />
                 <Select
-                  label="Market Ticker (Benchmark)"
+                  label="Benchmark"
                   value={marketTicker}
                   onChange={(e) => setMarketTicker(e.target.value)}
-                  options={[
-                    { value: '', label: 'Select benchmark...', disabled: true },
-                    ...PORTFOLIO_TICKER_OPTIONS
-                  ]}
+                  options={CAPM_BENCHMARK_SELECT_OPTIONS}
                   fullWidth
                 />
                 <Input
@@ -231,13 +228,10 @@ const CAPM = () => {
                   fullWidth
                 />
                 <Select
-                  label="Market Ticker (Benchmark)"
+                  label="Benchmark"
                   value={marketTicker}
                   onChange={(e) => setMarketTicker(e.target.value)}
-                  options={[
-                    { value: '', label: 'Select benchmark...', disabled: true },
-                    ...PORTFOLIO_TICKER_OPTIONS
-                  ]}
+                  options={CAPM_BENCHMARK_SELECT_OPTIONS}
                   fullWidth
                 />
                 <Input

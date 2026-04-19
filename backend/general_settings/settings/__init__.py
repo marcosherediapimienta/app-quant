@@ -1,9 +1,16 @@
-from .base import *  # noqa: F401,F403
-from .apps import *  # noqa: F401,F403
-from .database import *  # noqa: F401,F403
-from .middleware import *  # noqa: F401,F403
-from .rest_framework import *  # noqa: F401,F403
-from .templates import *  # noqa: F401,F403
-from .static import *  # noqa: F401,F403
-from .internationalization import *  # noqa: F401,F403
-from .chatbot import *  # noqa: F401,F403
+from .base import *  
+from .apps import *  
+from .database import *  
+from .middleware import *  
+from .rest_framework import *  
+from .templates import *  
+from .static import *  
+from .internationalization import *  
+from .chatbot import * 
+
+try:
+    from quant.utils.yfinance_network import apply_yfinance_network_tuning
+
+    apply_yfinance_network_tuning()
+except ImportError:
+    pass

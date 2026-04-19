@@ -4,17 +4,7 @@ from quant.domain.pm.utils.analysis.portfolio.analyzers.portfolio_analyzer impor
     PortfolioAnalyzer,
     PortfolioConfig,
 )
-from quant.domain.pm.utils.tools.config import INDEX_CONFIG
-
-_INDEX_LABELS = {
-    'SP500': 'S&P 500 · ~500 companies (USD)',
-    'NASDAQ100': 'NASDAQ 100 · ~100 companies (USD)',
-    'DOW30': 'Dow Jones 30 · ~30 companies (USD)',
-    'IBEX35': 'IBEX 35 · ~35 companies (USD)',
-    'EUROSTOXX50': 'EURO STOXX 50 · ~50 companies (USD)',
-    'NIKKEI225': 'Nikkei 225 · ~225 companies (USD)',
-    'MSCI_WORLD': 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)',
-}
+from quant.domain.pm.utils.tools.config import BENCHMARK_LABELS, INDEX_CONFIG
 
 
 class PortfolioUseCase:
@@ -47,7 +37,7 @@ class PortfolioUseCase:
         return {
             'supported_indices': supported,
             'index_options': [
-                {'value': idx, 'label': _INDEX_LABELS.get(idx, idx)}
+                {'value': idx, 'label': BENCHMARK_LABELS.get(idx, idx)}
                 for idx in supported
             ],
         }

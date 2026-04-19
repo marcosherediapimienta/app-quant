@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from ..tools.config import (
     PERIOD_WEEK,
@@ -28,19 +28,29 @@ class InflationSignals:
     commodity_names: Dict[str, str]
     inflation_pressure: str
     avg_commodity_change: float
+    avg_basket_keys: List[str]
+    excluded_from_avg: List[str]
 
 @dataclass
 class CreditConditions:
-    vix_level: float
-    market_condition: str
-    hyg_level: float = None
-    lqd_level: float = None
+    vix_level: Optional[float] = None
+    market_condition: Optional[str] = None
+    hyg_level: Optional[float] = None
+    lqd_level: Optional[float] = None
+    jnk_level: Optional[float] = None
+    move_level: Optional[float] = None
+    move_condition: Optional[str] = None
+    hyg_lqd_ratio: Optional[float] = None
+    hyg_change_1m_pct: Optional[float] = None
+    lqd_change_1m_pct: Optional[float] = None
+    jnk_change_1m_pct: Optional[float] = None
 
 @dataclass
 class RiskSentiment:
     vix: float
     fear_level: str
     dollar_strength: str
+    dxy_level: Optional[float] = None  
     dxy_trend: float = None
     dxy_trend_3m: float = None
     dxy_trend_1m: float = None
@@ -52,6 +62,18 @@ class RiskSentiment:
     safe_haven: str = None
 
 class MacroSituationAnalyzer:
+
+    _INFLATION_COMMODITY_LABELS = {
+        'GOLD': 'Gold',
+        'SILVER': 'Silver',
+        'OIL': 'WTI crude',
+        'BRENT': 'Brent',
+        'COPPER': 'Copper',
+        'WHEAT': 'Wheat',
+        'CORN': 'Corn',
+        'BITCOIN': 'Bitcoin',
+    }
+    _EXCLUDED_FROM_INFLATION_AVG = frozenset({'BITCOIN'})
 
     _VIX_MARKET_LEVELS = (
         ('panic',   "PANIC — Extreme stress"),
@@ -68,6 +90,13 @@ class MacroSituationAnalyzer:
         ('normal',  "MODERATE"),
     )
     _VIX_FEAR_DEFAULT = "COMPLACENCY"
+
+    _MOVE_MARKET_LEVELS = (
+        ('stress', "STRESS — Treasury implied vol very high"),
+        ('elevated', "ELEVATED — Rate uncertainty above normal"),
+        ('normal', "NORMAL — Typical bond-market volatility"),
+    )
+    _MOVE_MARKET_DEFAULT = "CALM — Low uncertainty in Treasury/rates vol"
 
     _INFLATION_LEVELS = (
         ('high',     "HIGH - Strong inflationary pressure"),
@@ -97,6 +126,32 @@ class MacroSituationAnalyzer:
             if past > 0:
                 return (series.iloc[-1] / past - 1) * 100
         return np.nan
+
+    @staticmethod
+    def _pct_change_trading_window(series: pd.Series, trading_days: int) -> float:
+        s = series.sort_index().dropna()
+        if len(s) < 2:
+            return np.nan
+        n = min(trading_days, len(s) - 1)
+        if n < 1:
+            return np.nan
+        ch = s.pct_change(periods=n).iloc[-1]
+        if pd.isna(ch) or not np.isfinite(float(ch)):
+            return np.nan
+        return float(ch * 100.0)
+
+    @staticmethod
+    def _commodity_annual_pct_change(series: pd.Series, target_period: int = PERIOD_YEAR) -> Optional[float]:
+        s = series.sort_index().dropna()
+        if len(s) < 2:
+            return None
+        n = min(target_period, len(s) - 1)
+        if n < 1:
+            return None
+        chg = s.pct_change(periods=n).iloc[-1]
+        if pd.isna(chg) or not np.isfinite(chg):
+            return None
+        return float(chg * 100.0)
     
     def analyze_yield_curve_usa(
         self,
@@ -200,43 +255,42 @@ class MacroSituationAnalyzer:
         factors_data: Dict[str, pd.Series]
     ) -> InflationSignals:
 
-        commodities = {
-            'GOLD': 'Gold',
-            'SILVER': 'Silver',
-            'OIL': 'Oil',
-            'COPPER': 'Copper',
-            'WHEAT': 'Wheat',
-            'CORN': 'Corn'
-        }
-        
-        commodity_changes = {}
-        commodity_names = {}
-        changes = []
-        
-        for factor, name in commodities.items():
-            if factor in factors_data and len(factors_data[factor]) >= PERIOD_YEAR:
-                series = factors_data[factor]
-                current = series.iloc[-1]
-                year_ago = series.iloc[-PERIOD_YEAR]
-                
-                if year_ago > 0:
-                    change_1y = (current / year_ago - 1) * 100
-                    commodity_changes[factor] = change_1y
-                    commodity_names[factor] = name
-                    changes.append(change_1y)
+        commodity_changes: Dict[str, float] = {}
+        commodity_names: Dict[str, str] = {}
 
-        if changes:
-            avg_change = np.mean(changes)
+        for factor, name in self._INFLATION_COMMODITY_LABELS.items():
+            if factor not in factors_data:
+                continue
+            series = factors_data[factor]
+            if len(series) < 2:
+                continue
+            change_1y = self._commodity_annual_pct_change(series, PERIOD_YEAR)
+            if change_1y is not None:
+                commodity_changes[factor] = change_1y
+                commodity_names[factor] = name
+
+        changes_for_avg = [
+            commodity_changes[k]
+            for k in commodity_changes
+            if k not in self._EXCLUDED_FROM_INFLATION_AVG
+        ]
+        avg_basket_keys = [k for k in commodity_changes if k not in self._EXCLUDED_FROM_INFLATION_AVG]
+        excluded_from_avg = sorted(k for k in commodity_changes if k in self._EXCLUDED_FROM_INFLATION_AVG)
+
+        if changes_for_avg:
+            avg_change = float(np.mean(changes_for_avg))
             pressure = self._classify(avg_change, 'inflation', self._INFLATION_LEVELS, self._INFLATION_DEFAULT)
         else:
             pressure = "N/A"
             avg_change = np.nan
-        
+
         return InflationSignals(
             commodity_changes=commodity_changes,
             commodity_names=commodity_names,
             inflation_pressure=pressure,
-            avg_commodity_change=avg_change
+            avg_commodity_change=avg_change,
+            avg_basket_keys=avg_basket_keys,
+            excluded_from_avg=excluded_from_avg,
         )
     
     def analyze_credit_conditions(
@@ -248,21 +302,62 @@ class MacroSituationAnalyzer:
         market_condition = None
         hyg_level = None
         lqd_level = None
+        jnk_level = None
+        move_level = None
+        move_condition = None
+        hyg_lqd_ratio = None
+        hyg_change_1m_pct = None
+        lqd_change_1m_pct = None
+        jnk_change_1m_pct = None
 
         if 'VIX' in factors_data and len(factors_data['VIX']) > 0:
-            vix_level = factors_data['VIX'].iloc[-1]
-            market_condition = self._classify(vix_level, 'vix', self._VIX_MARKET_LEVELS, self._VIX_MARKET_DEFAULT)
+            vix_level = float(factors_data['VIX'].iloc[-1])
+            market_condition = self._classify(
+                vix_level, 'vix', self._VIX_MARKET_LEVELS, self._VIX_MARKET_DEFAULT
+            )
 
-        if 'HYG' in factors_data and 'LQD' in factors_data:
-            if len(factors_data['HYG']) > 0 and len(factors_data['LQD']) > 0:
-                hyg_level = factors_data['HYG'].iloc[-1]
-                lqd_level = factors_data['LQD'].iloc[-1]
-        
+        if 'MOVE' in factors_data and len(factors_data['MOVE']) > 0:
+            move_level = float(factors_data['MOVE'].iloc[-1])
+            move_condition = self._classify(
+                move_level, 'move', self._MOVE_MARKET_LEVELS, self._MOVE_MARKET_DEFAULT
+            )
+
+        if 'HYG' in factors_data and len(factors_data['HYG']) > 0:
+            hyg_s = factors_data['HYG']
+            hyg_level = float(hyg_s.iloc[-1])
+            ch = self._pct_change(hyg_s, PERIOD_MONTH)
+            if ch is not None and not np.isnan(ch):
+                hyg_change_1m_pct = float(ch)
+
+        if 'LQD' in factors_data and len(factors_data['LQD']) > 0:
+            lqd_s = factors_data['LQD']
+            lqd_level = float(lqd_s.iloc[-1])
+            ch = self._pct_change(lqd_s, PERIOD_MONTH)
+            if ch is not None and not np.isnan(ch):
+                lqd_change_1m_pct = float(ch)
+
+        if 'JNK' in factors_data and len(factors_data['JNK']) > 0:
+            jnk_s = factors_data['JNK']
+            jnk_level = float(jnk_s.iloc[-1])
+            ch = self._pct_change(jnk_s, PERIOD_MONTH)
+            if ch is not None and not np.isnan(ch):
+                jnk_change_1m_pct = float(ch)
+
+        if hyg_level is not None and lqd_level is not None and lqd_level > 0:
+            hyg_lqd_ratio = hyg_level / lqd_level
+
         return CreditConditions(
             vix_level=vix_level,
             market_condition=market_condition,
             hyg_level=hyg_level,
-            lqd_level=lqd_level
+            lqd_level=lqd_level,
+            jnk_level=jnk_level,
+            move_level=move_level,
+            move_condition=move_condition,
+            hyg_lqd_ratio=hyg_lqd_ratio,
+            hyg_change_1m_pct=hyg_change_1m_pct,
+            lqd_change_1m_pct=lqd_change_1m_pct,
+            jnk_change_1m_pct=jnk_change_1m_pct,
         )
     
     def analyze_risk_sentiment(
@@ -278,7 +373,13 @@ class MacroSituationAnalyzer:
             fear_level = self._classify(vix, 'vix', self._VIX_FEAR_LEVELS, self._VIX_FEAR_DEFAULT)
 
         dxy_trend_3m = dxy_trend_1m = dxy_trend_1w = None
+        dxy_level = None
         if 'DXY' in factors_data and len(factors_data['DXY']) > 0:
+            dxy = factors_data['DXY'].dropna()
+            if len(dxy) > 0:
+                last = float(dxy.iloc[-1])
+                if np.isfinite(last):
+                    dxy_level = last
             dxy = factors_data['DXY']
             dxy_trend_3m = self._calculate_trend(dxy, PERIOD_QUARTER)
             dxy_trend_1m = self._calculate_trend(dxy, PERIOD_MONTH)
@@ -356,6 +457,7 @@ class MacroSituationAnalyzer:
             vix=vix,
             fear_level=fear_level,
             dollar_strength=dollar_strength,
+            dxy_level=dxy_level,
             dxy_trend=dxy_trend_3m,
             dxy_trend_3m=dxy_trend_3m,
             dxy_trend_1m=dxy_trend_1m,
@@ -383,11 +485,7 @@ class MacroSituationAnalyzer:
             'EUR_BOND': {'region': 'Europe', 'tenor': '10Y', 'unit': 'price'},
             'GER_BOND': {'region': 'Germany', 'tenor': '10Y', 'unit': 'price'},
             'UK_BOND': {'region': 'UK', 'tenor': '10Y', 'unit': 'price'},
-            'EM_BOND': {'region': 'Emerging Markets', 'tenor': '10Y', 'unit': 'price'},
             'CHINA_BOND': {'region': 'China', 'tenor': '10Y', 'unit': 'price'},
-            'CAN_BOND': {'region': 'Canada', 'tenor': '10Y', 'unit': 'price'},
-            'AUS_BOND': {'region': 'Australia', 'tenor': '10Y', 'unit': 'price'},
-            'INTL_BOND': {'region': 'International', 'tenor': '10Y', 'unit': 'price'}
         }
         
         logger.debug(f"[analyze_global_bonds] Available factors: {list(factors_data.keys())}")
@@ -407,7 +505,7 @@ class MacroSituationAnalyzer:
             bonds[region_name] = {
                 'level': series.iloc[-1],
                 'unit': bond_info['unit'],
-                'change_1y': self._pct_change(series, PERIOD_YEAR),
+                'change_1y': self._pct_change_trading_window(series, PERIOD_YEAR),
                 'change_1m': self._pct_change(series, PERIOD_MONTH),
             }
             logger.debug(f"[analyze_global_bonds] Bond added: {region_name} (factor: {factor})")

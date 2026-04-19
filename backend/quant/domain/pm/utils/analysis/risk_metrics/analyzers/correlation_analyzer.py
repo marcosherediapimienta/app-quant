@@ -16,13 +16,22 @@ class CorrelationAnalyzer:
         results = self.corr_calc.calculate(returns)
         corr_matrix = results['correlation_matrix']
         upper_triangle = corr_matrix.values[np.triu_indices_from(corr_matrix.values, k=1)]
-        
+
+        if upper_triangle.size == 0:
+            return {
+                'correlation_matrix': corr_matrix,
+                'mean_correlation': results['mean_correlation'],
+                'min_correlation': float(np.nan),
+                'max_correlation': float(np.nan),
+                'std_correlation': float(np.nan),
+            }
+
         return {
             'correlation_matrix': corr_matrix,
             'mean_correlation': results['mean_correlation'],
             'min_correlation': float(upper_triangle.min()),
             'max_correlation': float(upper_triangle.max()),
-            'std_correlation': float(upper_triangle.std())
+            'std_correlation': float(upper_triangle.std()),
         }
     
     def analyze_rolling(

@@ -10,6 +10,9 @@ const byTenor = ([a], [b]) => (TENOR_ORDER[a] || 99) - (TENOR_ORDER[b] || 99);
 const vixColor = (level) => level > 30 ? '#ef4444' : level > 20 ? '#f59e0b' : '#10b981';
 const vixLabel = (level) => level > 30 ? 'HIGH' : level > 20 ? 'ELEVATED' : 'NORMAL';
 
+const moveColor = (level) => (level > 120 ? '#ef4444' : level > 95 ? '#f59e0b' : '#10b981');
+const moveLabel = (level) => (level > 120 ? 'HIGH' : level > 95 ? 'ELEVATED' : 'NORMAL');
+
 const spreadColor = (s) => s < 0 ? '#ef4444' : s < 0.3 ? '#f59e0b' : '#10b981';
 const spreadLabel = (s) => s < 0 ? 'INVERTED' : s < 0.3 ? 'FLAT' : 'NORMAL';
 
@@ -42,6 +45,7 @@ const MacroSituationResults = ({ data }) => {
   const credit = data.credit || {};
   const globalBonds = data.global_bonds || {};
   const riskSentiment = data.risk_sentiment || {};
+  const snapshot = data.snapshot || {};
   const summary = data.summary || {};
   const overallRisk = summary.overall_risk || '';
   const riskFactors = summary.risk_factors || [];
@@ -52,6 +56,8 @@ const MacroSituationResults = ({ data }) => {
   const divergenceAnalysis = yieldCurve.divergence_analysis || {};
   const yieldCurveInterpretation = yieldCurve.interpretation || '';
   const spotRates = impliedCurve.spot_rates || {};
+  const spotLevelsForSidebar =
+    spotRates && Object.keys(spotRates).length > 0 ? spotRates : yieldCurveLevels;
   const forwardRates = impliedCurve.forward_rates || {};
   const termPremium = impliedCurve.term_premium || {};
   const forwardVsSpot = impliedCurve.forward_vs_spot || {};
@@ -61,16 +67,43 @@ const MacroSituationResults = ({ data }) => {
   const avgCommodityChange = inflation.avg_commodity_change;
   const commodityChanges = inflation.commodity_changes || {};
   const commodityNames = inflation.commodity_names || {};
+  const rawExcludedFromAvg = inflation.excluded_from_avg;
+  const excludedFromAvg =
+    Array.isArray(rawExcludedFromAvg) && rawExcludedFromAvg.length > 0
+      ? rawExcludedFromAvg
+      : commodityChanges.BITCOIN != null
+        ? ['BITCOIN']
+        : [];
+  const excludedFromAvgSet = new Set(excludedFromAvg);
   const vixLevel = credit.vix_level;
   const marketCondition = credit.market_condition;
   const hygLevel = credit.hyg_level;
   const lqdLevel = credit.lqd_level;
+  const jnkLevel = credit.jnk_level;
+  const moveLevel = credit.move_level;
+  const moveCondition = credit.move_condition;
+  const hygLqdRatio = credit.hyg_lqd_ratio;
+  const hygChange1m = credit.hyg_change_1m_pct;
+  const lqdChange1m = credit.lqd_change_1m_pct;
+  const jnkChange1m = credit.jnk_change_1m_pct;
   const fearLevel = riskSentiment.fear_level || '';
   const dollarStrength = riskSentiment.dollar_strength || '';
   const safeHaven = riskSentiment.safe_haven || '';
   const dxyTrend1w = riskSentiment.dxy_trend_1w;
   const dxyTrend1m = riskSentiment.dxy_trend_1m;
   const dxyTrend3m = riskSentiment.dxy_trend_3m;
+  const dxyLevel = (() => {
+    const n = (v) => {
+      if (v === null || v === undefined || v === '') return null;
+      const x = Number(v);
+      return Number.isFinite(x) ? x : null;
+    };
+    return (
+      n(riskSentiment.dxy_level)
+      ?? n(riskSentiment.dxyLevel)
+      ?? n(snapshot.DXY?.current)
+    );
+  })();
   const goldTrend1w = riskSentiment.gold_trend_1w;
   const goldTrend1m = riskSentiment.gold_trend_1m;
   const goldTrend3m = riskSentiment.gold_trend_3m;
@@ -128,21 +161,27 @@ const MacroSituationResults = ({ data }) => {
 
   const commodityChartData = Object.entries(commodityChanges)
     .map(([key, value]) => ({
+      factorKey: key,
       name: commodityNames[key] || key,
       change: typeof value === 'number' ? value : 0,
+      inAvgBasket: !excludedFromAvgSet.has(key),
     }))
     .sort((a, b) => b.change - a.change);
+
+  const commodityChartDataForAvg = commodityChartData.filter((row) => row.inAvgBasket);
+
+  const onlyBitcoinInInflationChart =
+    commodityChartData.length === 1 && commodityChartData[0]?.factorKey === 'BITCOIN';
 
   const globalBondsData = Object.entries(globalBonds).map(([region, bondData]) => ({
     region,
     level: bondData?.level || 0,
     unit: bondData?.unit || (bondData?.level < 20 ? 'yield' : 'price'),
     change1m: bondData?.change_1m ?? 0,
-    change1y: bondData?.change_1y ?? 0,
+    change1y: bondData?.change_1y,
   }));
 
   const spread10y2y = yieldCurveSpreads['10Y-2Y'];
-  const vixPct = vixLevel ? Math.min(vixLevel / 50, 1) : 0;
 
   const getYieldCurveInsight = () => {
     const spread30y10y = yieldCurveSpreads['30Y-10Y'];
@@ -291,6 +330,13 @@ const MacroSituationResults = ({ data }) => {
 
   const getInflationInsight = () => {
     if (commodityChartData.length === 0) return { body: null };
+    if (onlyBitcoinInInflationChart) {
+      return {
+        body:
+          `Only Bitcoin has a usable 12-month series in this response — other commodity series did not load. Re-run Macro Situation. Bitcoin (${formatPct(commodityChanges.BITCOIN)} 1Y) is for context only and is excluded from the headline average.`,
+        conclusion: null,
+      };
+    }
     const goldChange = commodityChanges['GOLD'];
     const oilChange = commodityChanges['OIL'];
     const copperChange = commodityChanges['COPPER'];
@@ -299,19 +345,36 @@ const MacroSituationResults = ({ data }) => {
     let body = '';
     let conclusion = '';
 
-    if (avgCommodityChange != null) {
-      const risingCount = commodityChartData.filter(c => c.change > 5).length;
-      const fallingCount = commodityChartData.filter(c => c.change < -5).length;
+    if (avgCommodityChange != null && !Number.isNaN(avgCommodityChange)) {
+      const basket = commodityChartDataForAvg.length > 0 ? commodityChartDataForAvg : commodityChartData;
+      const risingCount = basket.filter((c) => c.change > 5).length;
+      const fallingCount = basket.filter((c) => c.change < -5).length;
+      const n = basket.length;
 
       if (avgCommodityChange > 15) {
-        body = `Commodity prices are up ${formatPct(avgCommodityChange)} on average over 12 months, with ${risingCount} of ${commodityChartData.length} components showing gains above 5%. `;
+        body = `Commodity prices are up ${formatPct(avgCommodityChange)} on average over 12 months (basket excl. Bitcoin), with ${risingCount} of ${n} basket components showing gains above 5%. `;
       } else if (avgCommodityChange > 5) {
-        body = `Commodities show moderate inflationary pressure at ${formatPct(avgCommodityChange)} average, with ${risingCount} rising and ${fallingCount} declining significantly. `;
+        body = `Commodities show moderate inflationary pressure at ${formatPct(avgCommodityChange)} average (excl. Bitcoin), with ${risingCount} rising and ${fallingCount} declining significantly in the basket. `;
       } else if (avgCommodityChange < -5) {
-        body = `Broad commodity weakness at ${formatPct(avgCommodityChange)} average, with ${fallingCount} of ${commodityChartData.length} components declining sharply. `;
+        body = `Broad commodity weakness at ${formatPct(avgCommodityChange)} average (excl. Bitcoin), with ${fallingCount} of ${n} basket components declining sharply. `;
       } else {
-        body = `Commodity prices are largely range-bound (${formatPct(avgCommodityChange)} average), offering limited signal on inflationary dynamics. `;
+        body = `Commodity prices are largely range-bound (${formatPct(avgCommodityChange)} average, excl. Bitcoin), offering limited signal on inflationary dynamics. `;
       }
+    }
+
+    if (commodityChanges.BITCOIN != null && excludedFromAvg.includes('BITCOIN')) {
+      body += `Bitcoin (${formatPct(commodityChanges.BITCOIN)} 1Y) is shown for risk/liquidity context and is not included in the headline average. `;
+    }
+
+    if (commodityChanges.BRENT != null && oilChange != null) {
+      const spread = commodityChanges.BRENT - oilChange;
+      if (Math.abs(spread) > 3) {
+        body += `Brent vs WTI (${formatPct(commodityChanges.BRENT)} vs ${formatPct(oilChange)}) reflects regional/global crude pricing. `;
+      }
+    }
+
+    if (silverChange != null && goldChange != null && Math.abs(goldChange - silverChange) > 10) {
+      body += `Gold vs silver: ${formatPct(goldChange)} vs ${formatPct(silverChange)} — precious metals can diverge on monetary vs industrial tilt. `;
     }
 
     if (goldChange != null && oilChange != null && copperChange != null) {
@@ -336,7 +399,15 @@ const MacroSituationResults = ({ data }) => {
   };
 
   const getCreditInsight = () => {
-    if (hygLevel == null && lqdLevel == null) return { body: null };
+    if (
+      hygLevel == null
+      && lqdLevel == null
+      && jnkLevel == null
+      && vixLevel == null
+      && moveLevel == null
+    ) {
+      return { body: null };
+    }
     let body = '';
     let conclusion = '';
 
@@ -350,6 +421,13 @@ const MacroSituationResults = ({ data }) => {
       } else {
         body = `VIX at ${vixLevel.toFixed(1)} reflects a low-volatility regime consistent with complacent positioning. The cost of downside protection is cheap, which historically invites leveraged carry strategies and compressed risk premiums. Credit markets appear healthy with HYG at $${hygLevel != null ? hygLevel.toFixed(2) : 'N/A'} and LQD at $${lqdLevel != null ? lqdLevel.toFixed(2) : 'N/A'}.`;
         conclusion = `While low VIX is constructive for carry trades and credit, prolonged periods below 15 have historically preceded vol regime shifts. The cheap cost of hedging makes tactical put protection attractive at these levels.`;
+      }
+    }
+    if (moveLevel != null) {
+      const moveBit = ` MOVE (Treasury implied vol) at ${moveLevel.toFixed(1)} ${moveLevel > 120 ? 'signals acute stress in bond-market liquidity and rate uncertainty' : moveLevel > 95 ? 'is elevated — funding and duration markets are pricing more dispersion than usual' : 'is in a normal range for rate volatility'}.`;
+      body = body ? `${body} ${moveBit}` : moveBit.trim();
+      if (!conclusion && moveLevel > 95) {
+        conclusion = `When MOVE and credit risk diverge (e.g. calm equities but stressed rates), duration and credit can reprice without a broad equity vol spike — watch both panels.`;
       }
     }
     return { body: body || null, conclusion };
@@ -519,8 +597,9 @@ const MacroSituationResults = ({ data }) => {
       body = `${rising1y.length} of ${globalBondsData.length} regions show positive 12-month returns — a broad rally in sovereign bonds suggesting easing financial conditions globally. This is consistent with central banks pausing or pivoting, and the bond market anticipating the end of the tightening cycle.`;
       conclusion = `Synchronized bond strength is historically supportive for risk assets and credit. However, if the rally is driven by recession fears rather than dovish pivots, the signal for equities is more ambiguous.`;
     } else {
-      const bestPerformer = [...globalBondsData].sort((a, b) => b.change1y - a.change1y)[0];
-      const worstPerformer = [...globalBondsData].sort((a, b) => a.change1y - b.change1y)[0];
+      const by1y = (v) => (v == null || Number.isNaN(Number(v)) ? -Infinity : Number(v));
+      const bestPerformer = [...globalBondsData].sort((a, b) => by1y(b.change1y) - by1y(a.change1y))[0];
+      const worstPerformer = [...globalBondsData].sort((a, b) => by1y(a.change1y) - by1y(b.change1y))[0];
       body = `Performance is divergent across regions: ${bestPerformer?.region || 'N/A'} leads at ${formatPct(bestPerformer?.change1y)} while ${worstPerformer?.region || 'N/A'} lags at ${formatPct(worstPerformer?.change1y)}. This dispersion reflects asynchronous monetary policy cycles — regions at different stages of tightening, pausing, or easing — creating relative-value opportunities.`;
       if (falling1m.length > rising1m.length) {
         conclusion = `Near-term momentum is negative with ${falling1m.length} regions declining in the last month, suggesting the recent move is toward tighter conditions. Cross-market spread trades may offer better risk-adjusted returns than outright duration bets.`;
@@ -558,12 +637,18 @@ const MacroSituationResults = ({ data }) => {
     }
 
     if (intlBonds.length > 0 && usaBonds.length > 0) {
-      const avgUsaChange = usaBonds.reduce((s, b) => s + b.change1y, 0) / usaBonds.length;
-      const avgIntlChange = intlBonds.reduce((s, b) => s + b.change1y, 0) / intlBonds.length;
-      const divergence = Math.abs(avgUsaChange - avgIntlChange);
-      if (divergence > 10) {
-        const leader = avgUsaChange > avgIntlChange ? 'US' : 'international';
-        tips.push(`Significant US vs international divergence (${divergence.toFixed(0)}pp gap in 1Y returns). ${leader === 'US' ? 'US bonds outperforming' : 'International bonds outperforming'} — consider hedged international bond exposure if the spread is mean-reverting, or unhedged if the currency trend supports the ${leader} side.`);
+      const mean1y = (rows) => {
+        const vals = rows.map((b) => b.change1y).filter((v) => v != null && !Number.isNaN(Number(v)));
+        return vals.length ? vals.reduce((a, v) => a + Number(v), 0) / vals.length : null;
+      };
+      const avgUsaChange = mean1y(usaBonds);
+      const avgIntlChange = mean1y(intlBonds);
+      if (avgUsaChange != null && avgIntlChange != null) {
+        const divergence = Math.abs(avgUsaChange - avgIntlChange);
+        if (divergence > 10) {
+          const leader = avgUsaChange > avgIntlChange ? 'US' : 'international';
+          tips.push(`Significant US vs international divergence (${divergence.toFixed(0)}pp gap in 1Y returns). ${leader === 'US' ? 'US bonds outperforming' : 'International bonds outperforming'} — consider hedged international bond exposure if the spread is mean-reverting, or unhedged if the currency trend supports the ${leader} side.`);
+        }
       }
     }
 
@@ -578,7 +663,9 @@ const MacroSituationResults = ({ data }) => {
       <div className="dashboard-header-hero">
         <div className="hero-content">
           <h2 className="hero-title">Global Macroeconomic Situation</h2>
-          <p className="hero-subtitle">Comprehensive analysis of yield curve, inflation, credit, and risk sentiment</p>
+          <p className="hero-subtitle">
+            Yield curve, inflation, credit &amp; liquidity, global bonds, and risk sentiment
+          </p>
         </div>
         <div className={`risk-badge-large ${getRiskBadgeClass(overallRisk)}`}>
           <span className="risk-badge-label">Overall Risk</span>
@@ -604,35 +691,6 @@ const MacroSituationResults = ({ data }) => {
 
       {/* ═══════ KPI CARDS ═══════ */}
       <div className="dashboard-kpi-grid">
-        {/* VIX Card */}
-        {vixLevel != null && (
-          <div className="kpi-card">
-            <div className="kpi-header">
-              <span className="kpi-label">VIX</span>
-              <span className="kpi-badge" style={{
-                background: vixColor(vixLevel) + '20',
-                color: vixColor(vixLevel),
-              }}>
-                {vixLabel(vixLevel)}
-              </span>
-            </div>
-            <div className="kpi-value" style={{ color: vixColor(vixLevel) }}>
-              {vixLevel.toFixed(1)}
-            </div>
-            <div className="kpi-gauge">
-              <div className="kpi-gauge-track">
-                <div className="kpi-gauge-fill" style={{
-                  width: `${vixPct * 100}%`,
-                  background: `linear-gradient(90deg, #10b981, #f59e0b, #ef4444)`,
-                }} />
-              </div>
-            </div>
-            <div className="kpi-footer">
-              <span className="kpi-footer-text">{marketCondition || ''}</span>
-            </div>
-          </div>
-        )}
-
         {/* 10Y-2Y Spread Card */}
         {spread10y2y !== undefined && (
           <div className="kpi-card">
@@ -686,14 +744,16 @@ const MacroSituationResults = ({ data }) => {
               {formatPct(avgCommodityChange)}
             </div>
             <div className="kpi-footer">
-              <span className="kpi-footer-text">Average commodity change (1Y)</span>
+              <span className="kpi-footer-text">
+                Average 1Y change (commodities & ag; Bitcoin excluded from headline)
+              </span>
             </div>
           </div>
         )}
       </div>
 
       {/* ═══════ RISK SENTIMENT ═══════ */}
-      {(fearLevel || dollarStrength || safeHaven) && (
+      {(fearLevel || dollarStrength || safeHaven || dxyLevel != null) && (
         <div className="dashboard-chart-card">
           <div className="chart-header">
             <h3 className="dashboard-section-title">Risk Sentiment</h3>
@@ -725,23 +785,30 @@ const MacroSituationResults = ({ data }) => {
             )}
 
             {/* Dollar Strength */}
-            {dollarStrength && (
+            {(dollarStrength || dxyLevel != null) && (
               <div className="sentiment-card">
                 <div className="sentiment-card-accent" style={{
-                  background: dollarStrength.includes('STRONG') ? '#2563eb'
-                    : dollarStrength.includes('WEAK') || dollarStrength.includes('VERY WEAK') ? '#ef4444'
+                  background: (dollarStrength || '').includes('STRONG') ? '#2563eb'
+                    : (dollarStrength || '').includes('WEAK') || (dollarStrength || '').includes('VERY WEAK') ? '#ef4444'
                       : '#f59e0b'
                 }} />
                 <div className="sentiment-card-body">
                   <div className="sentiment-card-title">Dollar Strength</div>
-                  <div className="sentiment-card-value" style={{
-                    color: dollarStrength.includes('STRONG') ? '#2563eb'
-                      : dollarStrength.includes('WEAK') ? '#ef4444'
-                        : '#f59e0b',
-                    fontSize: '1rem',
-                  }}>
-                    {dollarStrength}
-                  </div>
+                  {dollarStrength && (
+                    <div className="sentiment-card-value" style={{
+                      color: dollarStrength.includes('STRONG') ? '#2563eb'
+                        : dollarStrength.includes('WEAK') ? '#ef4444'
+                          : '#f59e0b',
+                      fontSize: '1rem',
+                    }}>
+                      {dollarStrength}
+                    </div>
+                  )}
+                  {dxyLevel != null && (
+                    <div className="sentiment-card-detail">
+                      DXY (U.S. Dollar Index): {dxyLevel.toFixed(2)}
+                    </div>
+                  )}
                   <div className="sentiment-trends">
                     {dxyTrend1w != null && (
                       <span className="trend-chip" style={{ color: getChangeColor(dxyTrend1w) }}>1W: {formatPct(dxyTrend1w, 1)}</span>
@@ -845,7 +912,7 @@ const MacroSituationResults = ({ data }) => {
               {/* Spot Levels */}
               <div className="sidebar-title">Current Levels</div>
               <div className="spreads-list">
-                {Object.entries(yieldCurveLevels)
+                {Object.entries(spotLevelsForSidebar)
                   .sort(byTenor)
                   .map(([tenor, rate], idx) => (
                     <div key={idx} className="spread-item">
@@ -1072,11 +1139,15 @@ const MacroSituationResults = ({ data }) => {
           <div className="chart-header">
             <h3 className="dashboard-section-title">Inflation Signals — Commodity Changes (1Y)</h3>
             {avgCommodityChange != null && !isNaN(avgCommodityChange) && (
-              <span className="chart-badge" style={{
-                background: inflationColor(avgCommodityChange) + '15',
-                color: inflationColor(avgCommodityChange),
-              }}>
-                Avg: {formatPct(avgCommodityChange)}
+              <span
+                className="chart-badge"
+                style={{
+                  background: inflationColor(avgCommodityChange) + '15',
+                  color: inflationColor(avgCommodityChange),
+                }}
+                title="Mean of commodity/ag basket; Bitcoin shown on chart but excluded from this average"
+              >
+                Avg (excl. BTC): {formatPct(avgCommodityChange)}
               </span>
             )}
           </div>
@@ -1092,58 +1163,146 @@ const MacroSituationResults = ({ data }) => {
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 8 }}
               />
               <Bar dataKey="change" radius={[0, 4, 4, 0]} barSize={18}>
-                {commodityChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.change >= 0 ? '#10b981' : '#ef4444'} />
-                ))}
+                {commodityChartData.map((entry, index) => {
+                  const fill =
+                    entry.change < 0
+                      ? '#ef4444'
+                      : entry.factorKey === 'BITCOIN'
+                        ? '#8b5cf6'
+                        : '#10b981';
+                  return <Cell key={`cell-${index}`} fill={fill} />;
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* ═══════ CREDIT & VOLATILITY ═══════ */}
-      {(hygLevel != null || lqdLevel != null) && (
+      {/* ═══════ CREDIT RISK & LIQUIDITY ═══════ */}
+      {(hygLevel != null
+        || lqdLevel != null
+        || jnkLevel != null
+        || vixLevel != null
+        || moveLevel != null) && (
         <div className="dashboard-chart-card">
           <div className="chart-header">
-            <h3 className="dashboard-section-title">Credit Conditions</h3>
+            <h3 className="dashboard-section-title">Credit risk &amp; liquidity</h3>
           </div>
           {renderSectionInsight(getCreditInsight)}
-          <div className="credit-grid">
-            {hygLevel != null && (
-              <div className="credit-metric">
-                <div className="credit-label">HYG (High Yield)</div>
-                <div className="credit-value">${hygLevel.toFixed(2)}</div>
-                <div className="credit-status">iShares High Yield Corporate Bond ETF</div>
-                <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
-                  {hygLevel >= 82
-                    ? 'Price above $82 — credit spreads are tight, indicating strong risk appetite and low default expectations. Investors are comfortable lending to lower-rated corporations.'
-                    : hygLevel >= 75
-                      ? 'Price in the $75–82 range — moderate credit conditions. Spreads are neither distressed nor excessively compressed. Market reflects cautious but functional lending.'
-                      : 'Price below $75 — credit spreads are widening significantly, signaling stress in high-yield markets. Rising default risk and risk aversion are pushing investors away from junk bonds.'}
-                </div>
+          <div className="credit-liquidity-section">
+            <div>
+              <h4 className="credit-liquidity-subtitle">Credit market</h4>
+              <div className="credit-grid">
+                {hygLevel != null && (
+                  <div className="credit-metric">
+                    <div className="credit-label">HYG (High Yield)</div>
+                    <div className="credit-value">${hygLevel.toFixed(2)}</div>
+                    {hygChange1m != null && !Number.isNaN(hygChange1m) && (
+                      <div className="credit-status" style={{ color: getChangeColor(hygChange1m) }}>
+                        1M: {formatPct(hygChange1m)}
+                      </div>
+                    )}
+                    <div className="credit-status">iShares High Yield Corporate Bond ETF</div>
+                    <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+                      {hygLevel >= 82
+                        ? 'Price above $82 — credit spreads are tight, indicating strong risk appetite and low default expectations. Investors are comfortable lending to lower-rated corporations.'
+                        : hygLevel >= 75
+                          ? 'Price in the $75–82 range — moderate credit conditions. Spreads are neither distressed nor excessively compressed. Market reflects cautious but functional lending.'
+                          : 'Price below $75 — credit spreads are widening significantly, signaling stress in high-yield markets. Rising default risk and risk aversion are pushing investors away from junk bonds.'}
+                    </div>
+                  </div>
+                )}
+                {lqdLevel != null && (
+                  <div className="credit-metric">
+                    <div className="credit-label">LQD (Inv. Grade)</div>
+                    <div className="credit-value">${lqdLevel.toFixed(2)}</div>
+                    {lqdChange1m != null && !Number.isNaN(lqdChange1m) && (
+                      <div className="credit-status" style={{ color: getChangeColor(lqdChange1m) }}>
+                        1M: {formatPct(lqdChange1m)}
+                      </div>
+                    )}
+                    <div className="credit-status">iShares Investment Grade Corporate Bond ETF</div>
+                    <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+                      {lqdLevel >= 115
+                        ? 'Price above $115 — investment-grade bonds are strong, reflecting low yields and high confidence in corporate balance sheets. Favorable borrowing conditions for quality issuers.'
+                        : lqdLevel >= 105
+                          ? 'Price in the $105–115 range — investment-grade credit is stable. Yields are moderate, consistent with a normalizing rate environment.'
+                          : 'Price below $105 — investment-grade bonds under pressure from rising rates or credit risk repricing. Even high-quality corporate debt is losing value, suggesting broad fixed-income stress.'}
+                    </div>
+                  </div>
+                )}
+                {jnkLevel != null && (
+                  <div className="credit-metric">
+                    <div className="credit-label">JNK (High Yield alt.)</div>
+                    <div className="credit-value">${jnkLevel.toFixed(2)}</div>
+                    {jnkChange1m != null && !Number.isNaN(jnkChange1m) && (
+                      <div className="credit-status" style={{ color: getChangeColor(jnkChange1m) }}>
+                        1M: {formatPct(jnkChange1m)}
+                      </div>
+                    )}
+                    <div className="credit-status">SPDR Bloomberg High Yield Bond ETF</div>
+                    <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Cross-check with HYG: similar junk-bond exposure; persistent divergence between the two often reflects liquidity or composition effects rather than a different macro read.
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            {lqdLevel != null && (
-              <div className="credit-metric">
-                <div className="credit-label">LQD (Inv. Grade)</div>
-                <div className="credit-value">${lqdLevel.toFixed(2)}</div>
-                <div className="credit-status">iShares Investment Grade Corporate Bond ETF</div>
-                <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
-                  {lqdLevel >= 115
-                    ? 'Price above $115 — investment-grade bonds are strong, reflecting low yields and high confidence in corporate balance sheets. Favorable borrowing conditions for quality issuers.'
-                    : lqdLevel >= 105
-                      ? 'Price in the $105–115 range — investment-grade credit is stable. Yields are moderate, consistent with a normalizing rate environment.'
-                      : 'Price below $105 — investment-grade bonds under pressure from rising rates or credit risk repricing. Even high-quality corporate debt is losing value, suggesting broad fixed-income stress.'}
-                </div>
+            </div>
+            <div>
+              <h4 className="credit-liquidity-subtitle">Liquidity &amp; volatility</h4>
+              <div className="credit-grid">
+                {vixLevel != null && (
+                  <div className="credit-metric">
+                    <div className="credit-label">VIX (Equity vol)</div>
+                    <div className="credit-value" style={{ color: vixColor(vixLevel) }}>
+                      {vixLevel.toFixed(1)}
+                    </div>
+                    <span
+                      className="chart-badge"
+                      style={{
+                        background: `${vixColor(vixLevel)}15`,
+                        color: vixColor(vixLevel),
+                        alignSelf: 'center',
+                        marginBottom: '0.35rem',
+                      }}
+                    >
+                      {vixLabel(vixLevel)}
+                    </span>
+                    <div className="credit-status">{marketCondition || ''}</div>
+                  </div>
+                )}
+                {moveLevel != null && (
+                  <div className="credit-metric">
+                    <div className="credit-label">MOVE (Treasury vol)</div>
+                    <div className="credit-value" style={{ color: moveColor(moveLevel) }}>
+                      {moveLevel.toFixed(1)}
+                    </div>
+                    <span
+                      className="chart-badge"
+                      style={{
+                        background: `${moveColor(moveLevel)}15`,
+                        color: moveColor(moveLevel),
+                        alignSelf: 'center',
+                        marginBottom: '0.35rem',
+                      }}
+                    >
+                      {moveLabel(moveLevel)}
+                    </span>
+                    <div className="credit-status">{moveCondition || 'ICE BofA MOVE Index'}</div>
+                    <div className="credit-detail" style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+                      Higher MOVE usually means Treasury/rates uncertainty and poorer liquidity in duration — often without a matching spike in VIX.
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
           {(hygLevel != null && lqdLevel != null) && (
             <div className="insight-callout" style={{ marginTop: '1rem' }}>
               <span>
                 <strong>HYG vs LQD spread signal: </strong>
                 {(() => {
-                  const ratio = hygLevel / lqdLevel;
+                  const ratio = hygLqdRatio != null ? hygLqdRatio : hygLevel / lqdLevel;
                   if (ratio >= 0.76) {
                     return 'HYG is holding up well relative to LQD — credit markets show no signs of distress. Investors are not discriminating strongly between high-yield and investment-grade, which is typical of risk-on environments.';
                   } else if (ratio >= 0.70) {
