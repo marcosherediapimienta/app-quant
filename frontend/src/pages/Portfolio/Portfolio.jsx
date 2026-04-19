@@ -9,17 +9,9 @@ import Select from '../../components/Select/Select';
 import Card from '../../components/Card/Card';
 import PortfolioResults from '../../components/Results/PortfolioResults';
 import './Portfolio.css';
+import { PORTFOLIO_INDEX_SELECT_OPTIONS } from '../../utils/benchmarkOptions';
 
-const FALLBACK_INDEX_OPTIONS = [
-  { value: '', label: 'Select reference index...', disabled: true },
-  { value: 'SP500', label: 'S&P 500 · ~500 companies (USD)' },
-  { value: 'NASDAQ100', label: 'NASDAQ 100 · ~100 companies (USD)' },
-  { value: 'DOW30', label: 'Dow Jones 30 · ~30 companies (USD)' },
-  { value: 'IBEX35', label: 'IBEX 35 · ~35 companies (USD)' },
-  { value: 'EUROSTOXX50', label: 'EURO STOXX 50 · ~50 companies (USD)' },
-  { value: 'NIKKEI225', label: 'Nikkei 225 · ~225 companies (USD)' },
-  { value: 'MSCI_WORLD', label: 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)' },
-];
+const FALLBACK_INDEX_OPTIONS = PORTFOLIO_INDEX_SELECT_OPTIONS;
 
 const Portfolio = () => {
   const [indexName, setIndexName] = useState('');

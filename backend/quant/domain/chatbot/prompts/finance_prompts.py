@@ -35,7 +35,8 @@ SYSTEM_PROMPT_BASE = """You are GalaAI, an expert assistant in quantitative fina
 - Method-specific selection thresholds (selection_thresholds): each method applies minimum required category scores before ranking
 - Quality method prioritization: strict minimum requirements on profitability and financial health (config-driven, not hardcoded in prompt logic)
 - Supported portfolio indices in the app: SP500, NASDAQ100, DOW30, IBEX35, EUROSTOXX50, NIKKEI225, MSCI_WORLD
-- NASDAQ100: if Wikipedia constituent scrape fails, the backend uses a curated static fallback ticker list (sanity check).
+- NASDAQ100: portfolio *universe* (Nasdaq-100 constituents); if Wikipedia scrape fails, the backend uses a curated static fallback ticker list.
+- Risk UI uses the same benchmark dropdown as CAPM (Yahoo tickers); the frontend maps each ticker to an internal benchmark id for the risk API.
 - Index universe can be loaded dynamically from backend endpoint /portfolio/indices/ (with frontend fallback)
 
 *Fundamental / Company Valuation:*
