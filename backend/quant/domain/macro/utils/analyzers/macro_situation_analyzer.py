@@ -143,32 +143,50 @@ class MacroSituationAnalyzer:
         
         cfg = RISK_SCORING['credit']
         score = 0
-        vix = getattr(credit, 'vix_level', cfg['vix_default'])
-        
-        if vix and vix > cfg['vix_high']:
-            risk_factors.append('High volatility')
-            score += cfg['vix_high_score']
-        elif vix and vix > cfg['vix_elevated']:
-            risk_factors.append('Elevated volatility')
-            score += cfg['vix_elevated_score']
+        vix = getattr(credit, 'vix_level', None)
+
+        if vix is not None:
+            if vix > cfg['vix_high']:
+                risk_factors.append('High volatility')
+                score += cfg['vix_high_score']
+            elif vix > cfg['vix_elevated']:
+                risk_factors.append('Elevated volatility')
+                score += cfg['vix_elevated_score']
+
+        move = getattr(credit, 'move_level', None)
+        if move is not None:
+            if move > cfg['move_high']:
+                risk_factors.append('Treasury vol (MOVE) very high')
+                score += cfg['move_high_score']
+            elif move > cfg['move_elevated']:
+                risk_factors.append('Treasury vol (MOVE) elevated')
+                score += cfg['move_elevated_score']
         
         return score
 
     def _analyze_bonds(self, bonds: dict, risk_factors: list) -> int:
-        if 'USA' not in bonds:
-            return 0
         
+        if not bonds:
+            return 0
+        usa_keys = [k for k in bonds if isinstance(k, str) and k.startswith('USA ')]
+        if not usa_keys:
+            return 0
+        prefer = next((k for k in usa_keys if '10Y' in k), None)
+        anchor_key = prefer or usa_keys[0]
+        raw_change = bonds[anchor_key].get('change_1y')
+        if raw_change is None or (isinstance(raw_change, float) and pd.isna(raw_change)):
+            return 0
+        usa_bond_change = float(raw_change)
+
         cfg = RISK_SCORING['bonds']
         score = 0
-        usa_bond_change = bonds['USA'].get('change_1y', 0)
-        
         if usa_bond_change < cfg['severe_threshold']:
             risk_factors.append('Severe US bond sell-off')
             score += cfg['severe_score']
         elif usa_bond_change < cfg['pressure_threshold']:
             risk_factors.append('US bond pressure')
             score += cfg['pressure_score']
-        
+
         return score
 
     def _analyze_sentiment(self, sentiment, risk_factors: list) -> int:

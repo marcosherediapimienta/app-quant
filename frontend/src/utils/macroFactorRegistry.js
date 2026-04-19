@@ -184,6 +184,20 @@ export const MACRO_FACTOR_DEFINITIONS = [
     aliases: ['IRX'],
   },
   {
+    id: 'RATE_2Y',
+    ticker: 'FRED:DGS2',
+    label: 'RATE_2Y — Treasury 2Y (FRED DGS2)',
+    description:
+      '2-Year Treasury constant maturity from FRED (DGS2); Yahoo has no direct 2Y Treasury ticker.',
+    category: 'primary_macro',
+    family: 'rates',
+    region: 'US',
+    role: 'driver',
+    tags: ['fed', 'curve'],
+    defaultAutoSituation: 'extended',
+    aliases: ['FRED:DGS2'],
+  },
+  {
     id: 'RATE_5Y',
     ticker: '^FVX',
     label: 'RATE_5Y — Treasury 5Y (^FVX)',
@@ -309,6 +323,48 @@ export const MACRO_FACTOR_DEFINITIONS = [
     tags: ['credit', 'international'],
     defaultAutoSituation: 'extended',
     aliases: ['IBND'],
+  },
+  {
+    id: 'GER_BOND',
+    ticker: 'BUNL',
+    label: 'GER_BOND — Germany government bonds (BUNL ETF)',
+    description:
+      'iShares Germany Government Bond ETF (BUNL): proxy for German bund duration/sovereign exposure; traded price, not a spot Bund yield.',
+    category: 'risk_proxy',
+    family: 'rates',
+    region: 'Europe',
+    role: 'proxy',
+    tags: ['duration', 'ecb'],
+    defaultAutoSituation: 'extended',
+    aliases: ['BUNL'],
+  },
+  {
+    id: 'UK_BOND',
+    ticker: 'IGOV',
+    label: 'UK_BOND — international Treasuries (IGOV ETF)',
+    description:
+      'iShares International Treasury Bond ETF (IGOV): global ex-US sovereign exposure; not UK-only gilts.',
+    category: 'risk_proxy',
+    family: 'rates',
+    region: 'Europe',
+    role: 'proxy',
+    tags: ['duration', 'gilts'],
+    defaultAutoSituation: 'extended',
+    aliases: ['IGOV'],
+  },
+  {
+    id: 'CHINA_BOND',
+    ticker: 'CBON',
+    label: 'CHINA_BOND — China bonds (CBON ETF)',
+    description:
+      'VanEck China Bond ETF (CBON): onshore China bond exposure proxy; composition and regulation affect behavior vs a single yield.',
+    category: 'risk_proxy',
+    family: 'rates',
+    region: 'Asia',
+    role: 'proxy',
+    tags: ['china', 'duration'],
+    defaultAutoSituation: 'extended',
+    aliases: ['CBON'],
   },
 
   // —— FX (drivers) ——
@@ -469,6 +525,32 @@ export const MACRO_FACTOR_DEFINITIONS = [
     tags: ['growth', 'china', 'industrial'],
     defaultAutoSituation: 'core',
     aliases: ['HG=F'],
+  },
+  {
+    id: 'WHEAT',
+    ticker: 'ZW=F',
+    label: 'WHEAT — wheat (futures)',
+    description: 'CBOT wheat futures; agricultural / food-price pressure proxy.',
+    category: 'primary_macro',
+    family: 'commodities',
+    region: 'Global',
+    role: 'driver',
+    tags: ['inflation', 'agriculture'],
+    defaultAutoSituation: 'extended',
+    aliases: ['ZW=F'],
+  },
+  {
+    id: 'CORN',
+    ticker: 'CORN',
+    label: 'CORN — Teucrium Corn Fund (ETF)',
+    description: 'CORN ETF as traded proxy for corn; matches backend MACRO_FACTORS.',
+    category: 'primary_macro',
+    family: 'commodities',
+    region: 'US',
+    role: 'driver',
+    tags: ['inflation', 'agriculture'],
+    defaultAutoSituation: 'extended',
+    aliases: ['CORN'],
   },
 
   // —— Real assets / crypto (liquidity & rate-sensitive proxies) ——
@@ -712,6 +794,56 @@ export function getFactorMetadata(factor) {
   return byId.get(id) || null;
 }
 
+export function normalizeMacroTickerKey(t) {
+  return String(t)
+    .replace(/\^/g, '')
+    .replace(/=/g, '')
+    .replace(/-/g, '')
+    .replace(/\./g, '')
+    .toUpperCase();
+}
+
+export function extractPriceForFactorFromRow(row, factorId) {
+  if (!row || typeof row !== 'object') return undefined;
+  const meta = getFactorMetadata(factorId);
+  if (!meta) return undefined;
+  const candidates = [meta.ticker, ...(meta.aliases || [])].filter(Boolean);
+  for (const c of candidates) {
+    const v = row[c];
+    if (v !== undefined && v !== null && !Number.isNaN(Number(v))) return Number(v);
+  }
+  for (const c of candidates) {
+    const want = normalizeMacroTickerKey(c);
+    const match = Object.keys(row).find((k) => normalizeMacroTickerKey(k) === want);
+    if (match != null) {
+      const v = row[match];
+      if (v !== undefined && v !== null && !Number.isNaN(Number(v))) return Number(v);
+    }
+  }
+  return undefined;
+}
+
+export function mergeMacroFactorPayloads(base, extra) {
+  const out = { ...base };
+  for (const d of Object.keys(extra || {})) {
+    out[d] = { ...(out[d] || {}), ...(extra[d] || {}) };
+  }
+  return out;
+}
+
+export function payloadHasTickerSeries(formatted, ticker) {
+  if (!formatted || !ticker) return false;
+  const want = normalizeMacroTickerKey(ticker);
+  for (const d of Object.keys(formatted)) {
+    const row = formatted[d];
+    if (!row || typeof row !== 'object') continue;
+    for (const k of Object.keys(row)) {
+      if (normalizeMacroTickerKey(k) === want && row[k] != null && !Number.isNaN(Number(row[k]))) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * @param {string} factor
  * @returns {FactorCategory | null}
@@ -824,6 +956,38 @@ export const SITUATION_AUTO_FACTORS_EXTENDED = MACRO_FACTOR_DEFINITIONS.filter(
 
 export const SITUATION_AUTO_FACTORS = [
   ...new Set([...SITUATION_AUTO_FACTORS_CORE, ...SITUATION_AUTO_FACTORS_EXTENDED]),
+];
+
+export const SITUATION_YIELD_CURVE_FACTORS = [
+  'RATE_3M',
+  'RATE_2Y',
+  'RATE_5Y',
+  'RATE_10Y',
+  'RATE_30Y',
+];
+
+export const SITUATION_GLOBAL_BOND_FACTORS = [
+  'JPN_BOND',
+  'EUR_BOND',
+  'GER_BOND',
+  'UK_BOND',
+  'CHINA_BOND',
+];
+
+/** Credit ETFs + Treasury vol (MOVE) for Macro Situation; VIX/HYG are already in core auto factors. */
+export const SITUATION_CREDIT_LIQUIDITY_FACTORS = ['LQD', 'JNK', 'MOVE'];
+
+export const SITUATION_INFLATION_STRIP = ['SILVER', 'BRENT', 'BITCOIN'];
+
+export const SITUATION_INFLATION_STRIP_FULL = [
+  'GOLD',
+  'SILVER',
+  'OIL',
+  'BRENT',
+  'COPPER',
+  'WHEAT',
+  'CORN',
+  'BITCOIN',
 ];
 
 /**

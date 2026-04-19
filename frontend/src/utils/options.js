@@ -10,7 +10,6 @@ export const PORTFOLIO_TICKER_OPTIONS = [
   { value: '000001.SS', label: '000001.SS - Shanghai Composite Index (CNY)' },
 ];
 
-/** Same options as CAPM benchmark selects; Risk maps values to API keys via yahooTickerToRiskBenchmarkKey. */
 export const CAPM_BENCHMARK_SELECT_OPTIONS = [
   { value: '', label: 'Select benchmark...', disabled: true },
   ...PORTFOLIO_TICKER_OPTIONS,
@@ -31,6 +30,14 @@ export {
   SITUATION_AUTO_FACTORS,
   SITUATION_AUTO_FACTORS_CORE,
   SITUATION_AUTO_FACTORS_EXTENDED,
+  SITUATION_YIELD_CURVE_FACTORS,
+  SITUATION_GLOBAL_BOND_FACTORS,
+  SITUATION_CREDIT_LIQUIDITY_FACTORS,
+  SITUATION_INFLATION_STRIP,
+  SITUATION_INFLATION_STRIP_FULL,
+  extractPriceForFactorFromRow,
+  mergeMacroFactorPayloads,
+  payloadHasTickerSeries,
   DERIVED_FACTOR_SPECS,
   listFactorsByFilter,
   groupFactorsByFamily,
