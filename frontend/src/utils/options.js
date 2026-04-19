@@ -1,7 +1,6 @@
 export const PORTFOLIO_TICKER_OPTIONS = [
   { value: '^GSPC', label: '^GSPC - S&P 500 Index (USD)' },
   { value: '^IXIC', label: '^IXIC - Nasdaq Composite Index (USD)' },
-  { value: '^NDX', label: '^NDX - Nasdaq 100 Index (USD)' },
   { value: '^DJI', label: '^DJI - Dow Jones Industrial Average Index (USD)' },
   { value: '^RUA', label: '^RUA - Russell 3000 Index (USD)' },
   { value: '^IBEX', label: '^IBEX - IBEX 35 Index (EUR)' },

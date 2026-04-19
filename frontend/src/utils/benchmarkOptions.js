@@ -15,7 +15,6 @@ export const BENCHMARK_LABELS = {
 export const YAHOO_TICKER_TO_RISK_BENCHMARK = {
   '^GSPC': 'SP500',
   '^IXIC': 'NASDAQ_COMPOSITE',
-  '^NDX': 'NASDAQ100_INDEX',
   '^DJI': 'DOW30',
   '^RUA': 'RUSSELL3000',
   '^IBEX': 'IBEX35',

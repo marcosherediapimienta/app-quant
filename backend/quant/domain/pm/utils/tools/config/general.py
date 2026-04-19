@@ -1,7 +1,6 @@
 BENCHMARKS = {
     'SP500': '^GSPC',
     'NASDAQ_COMPOSITE': '^IXIC',
-    'NASDAQ100_INDEX': '^NDX',
     'DOW30': '^DJI',
     'RUSSELL3000': '^RUA',
     'IBEX35': '^IBEX',
@@ -15,7 +14,6 @@ BENCHMARKS = {
 BENCHMARK_CURRENCIES = {
     'SP500': 'USD',
     'NASDAQ_COMPOSITE': 'USD',
-    'NASDAQ100_INDEX': 'USD',
     'DOW30': 'USD',
     'RUSSELL2000': 'USD',
     'RUSSELL3000': 'USD',

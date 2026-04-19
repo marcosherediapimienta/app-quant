@@ -70,10 +70,19 @@ const MONETARY_METRICS = [
   'total_revenue', 'total_assets', 'market_cap', 'revenue_per_employee',
 ];
 
-const formatMetricValue = (key, value) => {
+const formatMetricValue = (key, value, categoryContext = '') => {
   if (value == null) return 'N/A';
-  if (typeof value !== 'number') return value;
   const lk = key.toLowerCase();
+  const cat = String(categoryContext).toLowerCase();
+  /* Ratios (0.078 = 7.8%). Also scope by category so any future Growth metric key still formats as %. */
+  const asGrowthRatio =
+    lk.includes('growth') || cat === 'growth';
+  if (asGrowthRatio) {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (Number.isFinite(n)) return (n * 100).toFixed(2) + '%';
+    return String(value);
+  }
+  if (typeof value !== 'number') return value;
   if (['margin', 'yield'].some(m => lk.includes(m)) && Math.abs(value) <= 1.5)
     return (value * 100).toFixed(2) + '%';
   if (RATIO_METRICS.some(m => lk.includes(m))) {
@@ -253,7 +262,7 @@ const ValuationResults = ({ data }) => {
               <div className="summary-item" key={key}>
                 <span className="summary-label">{label}</span>
                 <span className="summary-value">
-                  {formatMetricValue(key, value)}
+                  {formatMetricValue(key, value, categoryKey)}
                 </span>
                 {classification && (
                   <span style={{
@@ -1290,7 +1299,7 @@ const ComparisonView = ({ data }) => {
                           const value = categoryData?.metrics?.[metricKey];
                           return (
                             <td key={idx} className="numeric">
-                              {formatMetricValue(metricKey, value)}
+                              {formatMetricValue(metricKey, value, categoryKey)}
                             </td>
                           );
                         })}
