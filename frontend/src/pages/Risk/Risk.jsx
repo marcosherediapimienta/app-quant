@@ -5,7 +5,7 @@ import { parseTickers } from '../../utils/formatters';
 import { CAPM_BENCHMARK_SELECT_OPTIONS } from '../../utils/options';
 import { yahooTickerToRiskBenchmarkKey } from '../../utils/benchmarkOptions';
 import Loading from '../../components/Loading/Loading';
-import Error from '../../components/Error/Error';
+import ErrorMessage from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
 import Input from '../../components/Input/Input';
 import Select from '../../components/Select/Select';
@@ -32,7 +32,8 @@ const Risk = () => {
       }
       const sum = weights.reduce((a, b) => a + b, 0);
       if (Math.abs(sum - 1.0) > 0.01) {
-        throw new Error(`Weights must sum to 1.0 (current sum: ${sum})`);
+        const sumDisplay = Math.round(sum * 1e6) / 1e6;
+        throw new Error(`Weights must sum to 1.0 (current sum: ${sumDisplay})`);
       }
       return weights;
     }
@@ -94,7 +95,7 @@ const Risk = () => {
       </div>
 
       {analysis.error && (
-        <Error message={analysis.error} onRetry={() => analysis.reset()} />
+        <ErrorMessage message={analysis.error} onRetry={() => analysis.reset()} />
       )}
 
       <Card className="form-card">

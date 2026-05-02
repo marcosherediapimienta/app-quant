@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { portfolioService } from '../../services/portfolioService';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import Loading from '../../components/Loading/Loading';
-import Error from '../../components/Error/Error';
+import ErrorMessage from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
 import Input from '../../components/Input/Input';
 import Select from '../../components/Select/Select';
@@ -83,7 +83,7 @@ const Portfolio = () => {
       </div>
 
       {(analysis.error || validationError) && (
-        <Error 
+        <ErrorMessage 
           message={validationError || analysis.error} 
           onRetry={() => {
             setValidationError(null);

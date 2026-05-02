@@ -18,7 +18,7 @@ import {
   getFactorMetadata,
 } from '../../utils/options';
 import Loading from '../../components/Loading/Loading';
-import Error from '../../components/Error/Error';
+import ErrorMessage from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
 import Select from '../../components/Select/Select';
 import MultiSelect from '../../components/MultiSelect/MultiSelect';
@@ -175,7 +175,7 @@ const Macro = () => {
       </div>
 
       {analysis.error && (
-        <Error message={analysis.error} onRetry={() => analysis.reset()} />
+        <ErrorMessage message={analysis.error} onRetry={() => analysis.reset()} />
       )}
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={(tab) => { analysis.reset(); setActiveTab(tab); }} />

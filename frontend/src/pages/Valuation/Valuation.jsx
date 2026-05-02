@@ -3,7 +3,7 @@ import { valuationService } from '../../services/valuationService';
 import { useAnalysis } from '../../hooks/useAnalysis';
 import { parseTickers } from '../../utils/formatters';
 import Loading from '../../components/Loading/Loading';
-import Error from '../../components/Error/Error';
+import ErrorMessage from '../../components/Error/Error';
 import Button from '../../components/Button/Button';
 import Input from '../../components/Input/Input';
 import Card from '../../components/Card/Card';
@@ -71,7 +71,7 @@ const Valuation = () => {
       </div>
 
       {analysis.error && (
-        <Error message={analysis.error} onRetry={() => analysis.reset()} />
+        <ErrorMessage message={analysis.error} onRetry={() => analysis.reset()} />
       )}
 
       <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
