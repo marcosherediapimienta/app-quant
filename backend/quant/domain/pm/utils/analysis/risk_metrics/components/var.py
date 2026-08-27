@@ -50,11 +50,20 @@ class VaRCalculator:
             risk_level = "LOW"
         elif normality_score >= _NORM['score_questionable']:
             conclusion = "QUESTIONABLE"
-            recommendation = "Parametric VaR may underestimate risk. Consider using Historical VaR as well."
+            recommendation = (
+                "Parametric VaR may underestimate risk. "
+                "Prioritise Historical VaR and Historical ES. "
+                "Note: Gaussian Monte Carlo VaR shares the same normality assumption as Parametric VaR "
+                "and may not capture tail risk any better."
+            )
             risk_level = "MEDIUM"
         else:
             conclusion = "NO NORMAL"
-            recommendation = "Parametric VaR NOT recommended. Use Historical VaR or Monte Carlo."
+            recommendation = (
+                "Parametric VaR NOT recommended. "
+                "Prioritise Historical VaR and Historical ES. "
+                "Gaussian Monte Carlo VaR also assumes normality and may similarly underestimate tail losses."
+            )
             risk_level = "HIGH"
 
         if ad_results['tail_risk'] == 'SEVERE' and risk_level != 'HIGH':
@@ -62,7 +71,9 @@ class VaRCalculator:
             conclusion = "NO NORMAL"
             recommendation = (
                 "Anderson-Darling detects extremely heavy tails. "
-                "Parametric VaR NOT recommended. Use Historical VaR or Monte Carlo."
+                "Parametric VaR NOT recommended. "
+                "Prioritise Historical VaR and Historical ES — "
+                "Gaussian Monte Carlo VaR is subject to the same normality limitation."
             )
         
         results = {

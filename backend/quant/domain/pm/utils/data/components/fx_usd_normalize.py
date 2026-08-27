@@ -66,6 +66,7 @@ _INDEX_TICKER_CCY: Dict[str, str] = {
     "^RUT": "USD",
     "^RUA": "USD",
     "^990100-USD-STRD": "USD",
+    "URTH": "USD",
 }
 
 _FX_PAIR: Dict[str, Tuple[str, str]] = {

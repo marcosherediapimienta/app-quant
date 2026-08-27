@@ -586,8 +586,8 @@ export const MACRO_FACTOR_DEFINITIONS = [
   // —— Equity benchmarks ——
   {
     id: 'MSCI_WORLD_INDEX',
-    ticker: '^990100-USD-STRD',
-    label: 'MSCI World',
+    ticker: 'URTH',
+    label: 'MSCI World (URTH, NTR USD)',
     description:
       'MSCI World in USD: global developed equity benchmark; primary reference for “global equity” portfolios.',
     category: 'benchmark',
@@ -596,7 +596,7 @@ export const MACRO_FACTOR_DEFINITIONS = [
     role: 'benchmark',
     tags: ['beta', 'global_equity'],
     benchmarkTier: 'primary_global',
-    aliases: ['990100-USD-STRD'],
+    aliases: ['URTH'],
   },
   {
     id: 'SP500_INDEX',

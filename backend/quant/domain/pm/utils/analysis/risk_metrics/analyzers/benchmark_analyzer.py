@@ -29,12 +29,51 @@ class BenchmarkAnalyzer:
             risk_free_rate, beta=beta_results['beta'], ddof=ddof
         )
 
+        ir = te_results['information_ratio']
+        te_ann = te_results['te_annual']
+        excess_arith = te_results['excess_return_annual']
+        beta = beta_results['beta']
+
+        if np.isnan(ir) if ir is not None else True:
+            ir_interp = "Insufficient data to compute the Information Ratio."
+        else:
+            ir_interp = (
+                f"IR = {ir:.2f} (arithmetic active return {excess_arith*100:.2f}% ÷ "
+                f"tracking error {te_ann*100:.2f}%). "
+                "Note: the excess return shown in the Portfolio vs Benchmark table is "
+                "geometric (CAGR difference), which will differ from the arithmetic "
+                "figure used here — both are valid but measure different things."
+            )
+
+        _caution = (
+            " Caution: this estimate is derived from daily returns and may be "
+            "distorted by asynchronous NAV, index and FX valuation times. "
+            "Recalculate using aligned weekly returns before drawing structural conclusions."
+        )
+        if beta > 1.1:
+            beta_interp = (
+                f"Estimated beta: {beta:.2f} — the portfolio historically moved ~{beta:.2f}× "
+                "the benchmark on a daily basis (aggressive sensitivity)." + _caution
+            )
+        elif beta < 0.9:
+            beta_interp = (
+                f"Estimated beta: {beta:.2f} — historically ~{beta*100:.0f}% of benchmark "
+                "daily sensitivity." + _caution
+            )
+        else:
+            beta_interp = (
+                f"Estimated beta: {beta:.2f} — close to but not identical to the benchmark "
+                f"(~{beta*100:.0f}% daily sensitivity)." + _caution
+            )
+
         return {
             'tracking_error_daily': te_results['te_daily'],
-            'tracking_error_annual': te_results['te_annual'],
-            'excess_return_annual': te_results['excess_return_annual'],
-            'information_ratio': te_results['information_ratio'],
-            'beta': beta_results['beta'],
+            'tracking_error_annual': te_ann,
+            'excess_return_annual': excess_arith,
+            'information_ratio': ir,
+            'information_interpretation': ir_interp,
+            'beta': beta,
+            'beta_interpretation': beta_interp,
             'r_squared': beta_results['r_squared'],
             'correlation': beta_results['correlation'],
             'alpha_annual': alpha_results['alpha_annual'],
