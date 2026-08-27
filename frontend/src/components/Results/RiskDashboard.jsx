@@ -94,12 +94,12 @@ const getTickerPerformanceInsight = (data) => {
         <strong>{best[0]}</strong> leads the portfolio with an annualized return of <strong>{formatPercent(best[1].annual_return)}</strong>,
         while <strong>{worst[0]}</strong> is the weakest performer ({formatPercent(worst[1].annual_return)}).
         {bestRR && (
-          <> Best risk-adjusted efficiency: <strong>{bestRR[0]}</strong> with a ratio of {formatNumber(bestRR[1].annual_return / bestRR[1].annual_volatility)} units of return per unit of risk.</>
+          <> Highest CAGR/Volatility ratio (unadjusted for risk-free rate): <strong>{bestRR[0]}</strong> at {formatNumber(bestRR[1].annual_return / bestRR[1].annual_volatility)}.</>
         )}
         {entries.length > 2 && (
           <span className="insight-conclusion">
             {negativeReturns.length === 0
-              ? 'All assets generate positive returns — constructive portfolio structure.'
+              ? 'All assets produced positive CAGR in this sample period — note that past performance does not indicate future returns.'
               : `${negativeReturns.length} of ${entries.length} assets with negative returns — review allocation.`}
           </span>
         )}
@@ -116,8 +116,19 @@ const getRatiosInsight = (data) => {
   const warnings = [];
   if (sharpe_ratio != null && sharpe_ratio < 0)
     warnings.push('Negative Sharpe indicates the portfolio is destroying value relative to the risk-free rate — the risk exposure is not being compensated.');
-  if (downside_volatility != null && annual_volatility != null && downside_volatility > annual_volatility * 0.65)
-    warnings.push(`Downside volatility (${formatPercent(downside_volatility)}) is disproportionately high relative to total volatility (${formatPercent(annual_volatility)}), indicating negative asymmetry in returns.`);
+  {
+    const skew = data.distribution?.skewness;
+    const kurt = data.distribution?.excess_kurtosis;
+    if ((skew != null && skew < -0.3) || (kurt != null && kurt > 1)) {
+      warnings.push(
+        `Asymmetric tail risk confirmed by distribution analysis` +
+        (skew != null && skew < -0.3 ? `: negative skewness (${skew.toFixed(3)})` : '') +
+        (skew != null && skew < -0.3 && kurt != null && kurt > 1 ? ' and ' : (kurt != null && kurt > 1 ? ': ' : '')) +
+        (kurt != null && kurt > 1 ? `excess kurtosis (${kurt.toFixed(3)})` : '') +
+        `. Downside volatility is ${downside_volatility != null ? formatPercent(downside_volatility) : 'N/A'} — interpret alongside these distribution metrics, not as a simple comparison to total volatility.`
+      );
+    }
+  }
 
   return (
     <>
@@ -131,7 +142,7 @@ const getRatiosInsight = (data) => {
               ? '— significantly higher than Sharpe, suggesting upside volatility exceeds downside (favorable asymmetric profile).'
               : sortino_ratio < sharpe_ratio * 0.8
                 ? '— lower than Sharpe, signaling that drawdowns are more pronounced than rallies (negative asymmetry).'
-                : '— aligned with Sharpe, suggesting a symmetric risk profile.'
+                : '— close to Sharpe. This does not imply a symmetric distribution — check skewness and kurtosis below, which may reveal meaningful downside risk not captured by this ratio comparison.'
             }{' '}
           </>
         )}
@@ -165,25 +176,51 @@ const getVarEsInsight = (data) => {
     Math.abs(a[1].var_daily) < Math.abs(b[1].var_daily) ? a : b
   );
 
+  const mcEntry = methods.find(([m]) => m === 'monte_carlo');
+  const paramEntry = methods.find(([m]) => m === 'parametric');
+  const mcVsParamClose = mcEntry && paramEntry
+    && Math.abs(Math.abs(mcEntry[1].var_daily) - Math.abs(paramEntry[1].var_daily)) < 0.001;
+
   const warnings = [];
   if (divergence > 0.005)
     warnings.push(`Significant divergence between methods (${formatPercent(divergence)}) — indicates fat tails in the distribution. Parametric VaR likely underestimates actual risk.`);
   if (maxVar > 0.03)
     warnings.push(`Daily VaR exceeds 3% — in an adverse scenario, a loss of ${formatPercent(maxVar)} in a single day is plausible.`);
+  if (mcVsParamClose)
+    warnings.push(`Monte Carlo VaR is nearly identical to Parametric VaR — this simulation uses a Gaussian model (μ, Σ) and does not capture fat tails. With non-normal returns, both methods underestimate tail risk. Prioritise Historical VaR and ES.`);
+
+  const historicalEntry = methods.find(([m]) => m === 'historical');
 
   return (
     <>
       <div className="insight-callout">
-        Maximum expected loss on a typical bad day (95% confidence) ranges
-        from <strong>{formatPercent(Math.abs(bestMethod[1].var_daily))}</strong> ({bestMethod[0].replace('_', ' ')})
-        to <strong>{formatPercent(Math.abs(worstMethod[1].var_daily))}</strong> ({worstMethod[0].replace('_', ' ')}).
-        {worstMethod[1].es_daily && (
-          <> Expected Shortfall extends the potential loss to <strong>{formatPercent(Math.abs(worstMethod[1].es_daily))}</strong> in
-            the worst tail scenarios.</>
+        {historicalEntry ? (
+          <>
+            <strong>Historical daily VaR (95%): {formatPercent(Math.abs(historicalEntry[1].var_daily))}</strong>.
+            This is a <em>loss threshold, not a maximum</em>: on ~5% of observed trading sessions losses exceeded this figure.
+            {historicalEntry[1].es_daily && (
+              <> <strong>Historical Expected Shortfall: {formatPercent(Math.abs(historicalEntry[1].es_daily))}</strong> — the average loss among the worst 5% of sessions, always exceeding VaR.</>
+            )}
+            {' '}Historical estimates are preferred for non-normal distributions as they make no distributional assumptions.
+          </>
+        ) : (
+          <>
+            Daily VaR at 95% confidence ranges
+            from <strong>{formatPercent(Math.abs(bestMethod[1].var_daily))}</strong> ({bestMethod[0].replace('_', ' ')})
+            to <strong>{formatPercent(Math.abs(worstMethod[1].var_daily))}</strong> ({worstMethod[0].replace('_', ' ')}).
+            This is a <em>loss threshold, not a maximum</em>: historically, on ~5% of trading days losses exceeded this figure.
+            {worstMethod[1].es_daily && (
+              <> Expected Shortfall: <strong>{formatPercent(Math.abs(worstMethod[1].es_daily))}</strong> — the average loss on those worst 5% of days.</>
+            )}
+          </>
         )}
-        {worstMethod[1].var_annual && (
+        {historicalEntry && (historicalEntry[1].var_annual || historicalEntry[1].es_daily) && (
           <span className="insight-conclusion">
-            Annualized, VaR reaches {formatPercent(Math.abs(worstMethod[1].var_annual))} — meaning in an adverse year you could lose up to that proportion of the portfolio.
+            Rough √252 scaling gives{' '}
+            {historicalEntry[1].var_annual && <><strong>{formatPercent(Math.abs(historicalEntry[1].var_annual))}</strong> for Historical VaR</>}
+            {historicalEntry[1].var_annual && historicalEntry[1].es_daily && ' and '}
+            {historicalEntry[1].es_daily && <><strong>{formatPercent(Math.abs(historicalEntry[1].es_daily) * Math.sqrt(252))}</strong> for Historical ES</>}.
+            {' '}These are scaling approximations assuming i.i.d. returns — do not interpret as worst-case annual losses.
           </span>
         )}
       </div>
@@ -192,37 +229,82 @@ const getVarEsInsight = (data) => {
   );
 };
 
+const formatDrawdownDuration = (sessions) => {
+  if (!sessions) return null;
+  if (sessions >= 252) return `${sessions} sessions (~${(sessions / 252).toFixed(1)} trading years)`;
+  return `${sessions} sessions (~${Math.round(sessions / 21)} trading months)`;
+};
+
 const getDrawdownInsight = (data) => {
   if (!data.drawdown?.per_ticker) return null;
   const entries = Object.entries(data.drawdown.per_ticker);
   if (entries.length === 0) return null;
 
+  const portfolioDD = data.drawdown.portfolio && !data.drawdown.portfolio.error
+    ? data.drawdown.portfolio
+    : null;
+
   const worst = entries.reduce((a, b) => a[1].max_drawdown < b[1].max_drawdown ? a : b);
   const bestEntry = entries.reduce((a, b) => a[1].max_drawdown > b[1].max_drawdown ? a : b);
 
   const warnings = [];
-  if (Math.abs(worst[1].max_drawdown) > 0.30)
+  if (portfolioDD && Math.abs(portfolioDD.max_drawdown) > 0.30)
+    warnings.push(`The weighted portfolio suffered a drawdown of ${formatPercent(portfolioDD.max_drawdown)}, exceeding the 30% threshold. Losses of this magnitude are mathematically difficult to recover from.`);
+  else if (!portfolioDD && Math.abs(worst[1].max_drawdown) > 0.30)
     warnings.push(`${worst[0]} suffered a drawdown of ${formatPercent(worst[1].max_drawdown)}, exceeding the 30% threshold. Losses of this magnitude are mathematically difficult to recover from.`);
-  if (worst[1].max_underwater_duration && worst[1].max_underwater_duration > 120)
-    warnings.push(`The longest recovery period was ${worst[1].max_underwater_duration} trading days — over 5 months underwater, a significant stress test for any investor.`);
+
+  const refDD = portfolioDD ?? worst[1];
+  const refDur = refDD.max_underwater_duration;
+  if (refDur && refDur > 120) {
+    const label = refDur >= 252
+      ? `~${(refDur / 252).toFixed(1)} trading years`
+      : `~${Math.round(refDur / 21)} trading months`;
+    const subject = portfolioDD ? 'The portfolio' : `${worst[0]}`;
+    warnings.push(`${subject} spent ${refDur} trading sessions (${label}) underwater — a significant stress test for any investor.`);
+  }
+  if (refDD.longest_underwater_is_max_drawdown === false)
+    warnings.push('The deepest drawdown and the longest underwater period are two different episodes — do not read the duration as the recovery time of the worst loss.');
+  if (refDD.max_drawdown_recovered === false)
+    warnings.push('The deepest drawdown had not been fully recovered by the end of the analysed period.');
 
   return (
     <>
       <div className="insight-callout">
-        The deepest drawdown was recorded in <strong>{worst[0]}</strong> with a decline of <strong>{formatPercent(worst[1].max_drawdown)}</strong>
-        {worst[1].max_drawdown_date && <> (trough: {fmtDate(worst[1].max_drawdown_date)})</>}
-        {worst[1].max_underwater_duration && <>, lasting <strong>{worst[1].max_underwater_duration} days</strong></>}.
-        {entries.length > 1 && (
-          <> Most resilient: <strong>{bestEntry[0]}</strong> ({formatPercent(bestEntry[1].max_drawdown)}).</>
+        {portfolioDD ? (
+          <>The weighted portfolio reached a maximum drawdown of{' '}
+            <strong>{formatPercent(portfolioDD.max_drawdown)}</strong>
+            {portfolioDD.max_drawdown_date && <> (peak {fmtDate(portfolioDD.max_drawdown_peak_date)} → trough {fmtDate(portfolioDD.max_drawdown_date)}
+              {portfolioDD.max_drawdown_recovered
+                ? <> → recovered {fmtDate(portfolioDD.max_drawdown_recovery_date)}, {formatDrawdownDuration(portfolioDD.max_drawdown_duration)}</>
+                : <>, not yet recovered</>})</>}.{' '}
+            Note: this figure is <em>not</em> the weighted average of individual drawdowns — it reflects actual portfolio-level losses.{' '}
+          </>
+        ) : (
+          <>The deepest individual drawdown was recorded in <strong>{worst[0]}</strong> with a decline of{' '}
+            <strong>{formatPercent(worst[1].max_drawdown)}</strong>
+            {worst[1].max_drawdown_date && <> (trough: {fmtDate(worst[1].max_drawdown_date)})</>}.{' '}
+          </>
         )}
-        {worst[1].calmar_ratio != null && (
+        {refDD.max_underwater_duration > 0 && (
+          <>Longest underwater stretch: <strong>{formatDrawdownDuration(refDD.max_underwater_duration)}</strong>
+            {refDD.longest_underwater_start && <> (from {fmtDate(refDD.longest_underwater_start)}
+              {refDD.longest_underwater_recovery_date
+                ? <> to {fmtDate(refDD.longest_underwater_recovery_date)}</>
+                : <>, still underwater at period end</>})</>}
+            {refDD.longest_underwater_is_max_drawdown === false && <> — a different episode from the deepest drawdown</>}.{' '}
+          </>
+        )}
+        {entries.length > 1 && (
+          <>Most resilient individual asset: <strong>{bestEntry[0]}</strong> ({formatPercent(bestEntry[1].max_drawdown)}).</>
+        )}
+        {(portfolioDD ?? worst[1]).calmar_ratio != null && (
           <span className="insight-conclusion">
-            Calmar Ratio of {formatNumber(worst[1].calmar_ratio)} for {worst[0]}{' '}
-            — {worst[1].calmar_ratio > 1 ? 'strong recovery capacity.' : worst[1].calmar_ratio > 0.5 ? 'moderate recovery capacity.' : 'weak recovery relative to the drawdown.'}
+            {portfolioDD ? 'Portfolio' : worst[0]} Calmar Ratio: {formatNumber((portfolioDD ?? worst[1]).calmar_ratio)}{' '}
+            — {(portfolioDD ?? worst[1]).calmar_ratio > 1 ? 'strong recovery capacity.' : (portfolioDD ?? worst[1]).calmar_ratio > 0.5 ? 'moderate recovery capacity.' : 'weak recovery relative to the drawdown.'}
           </span>
         )}
       </div>
-      <WarningCallout warnings={warnings} severity={Math.abs(worst[1].max_drawdown) > 0.40 ? 'callout-danger' : 'callout-warning'} />
+      <WarningCallout warnings={warnings} severity={Math.abs((portfolioDD ?? worst[1]).max_drawdown) > 0.40 ? 'callout-danger' : 'callout-warning'} />
     </>
   );
 };
@@ -253,7 +335,7 @@ const getDistributionInsight = (data) => {
         <span className="insight-conclusion">
           {is_normal
             ? 'Distribution approximates normality — parametric metrics are reliable.'
-            : 'Non-normal distribution — prioritize Historical/Monte Carlo VaR over Parametric.'}
+            : 'Non-normal distribution — prioritise Historical VaR and Historical ES. Parametric VaR and Gaussian Monte Carlo VaR share the same normality assumption and may both underestimate tail losses.'}
         </span>
       </div>
       <WarningCallout warnings={warnings} />
@@ -263,26 +345,59 @@ const getDistributionInsight = (data) => {
 
 const getBenchmarkInsight = (data) => {
   if (!data.benchmark_analysis) return null;
-  const { alpha_annual, beta, r_squared, information_ratio } = data.benchmark_analysis;
+  const {
+    alpha_annual, beta, r_squared, information_ratio, information_interpretation,
+    portfolio_return_annual, benchmark_return_annual,
+  } = data.benchmark_analysis;
+
+  const excessCagr = (portfolio_return_annual != null && benchmark_return_annual != null)
+    ? portfolio_return_annual - benchmark_return_annual
+    : null;
 
   const warnings = [];
   if (alpha_annual != null && alpha_annual < 0)
     warnings.push(`Negative alpha (${formatPercent(alpha_annual)}) — the portfolio is not being compensated for the active risk taken versus the benchmark.`);
+  if (alpha_annual != null && alpha_annual > 0 && excessCagr != null && excessCagr < 0)
+    warnings.push(
+      `Jensen's alpha is positive (${formatPercent(alpha_annual)}) but the portfolio CAGR is ${formatPercent(Math.abs(excessCagr))} lower than the benchmark. ` +
+      `Positive alpha can coexist with lower total return when beta < 1 — alpha measures risk-adjusted excess, not raw outperformance.`
+    );
   if (beta != null && beta > 1.3)
     warnings.push(`Beta of ${formatNumber(beta)} — the portfolio amplifies market movements by ${((beta - 1) * 100).toFixed(0)}%. In benchmark declines, the impact will be proportionally larger.`);
   if (information_ratio != null && information_ratio < 0)
     warnings.push(`Negative Information Ratio (${formatNumber(information_ratio)}) — active management is not generating value versus a passive strategy.`);
+  warnings.push(
+    'Daily benchmark metrics (beta, alpha, R², tracking error, IR) may be distorted by asynchronous NAV, index and FX valuation times. ' +
+    'For funds priced at a different cut-off than the benchmark, daily return differences partly reflect timing mismatches rather than true active risk. ' +
+    'Interpret these figures with caution; weekly aligned returns would give a more reliable estimate.'
+  );
 
   return (
     <>
-      <div className={`insight-callout ${alpha_annual != null && alpha_annual > 0 ? 'callout-success' : ''}`}>
+      <div className={`insight-callout ${alpha_annual != null && alpha_annual > 0 && excessCagr != null && excessCagr >= 0 ? 'callout-success' : ''}`}>
         {alpha_annual != null && (
-          <>The portfolio generates an annual alpha of <strong>{formatPercent(alpha_annual)}</strong>{' '}
-            — {alpha_annual > 0 ? 'outperforming the benchmark on a risk-adjusted basis.' : 'failing to outperform the benchmark after adjusting for risk.'}{' '}</>
+          <>Jensen's alpha: <strong>{formatPercent(alpha_annual)}</strong> (annual).{' '}
+            {alpha_annual > 0
+              ? <>This is a risk-adjusted measure under the estimated beta model — it does <em>not</em> mean the portfolio achieved a higher total return than the benchmark.</>
+              : <>Negative alpha indicates the portfolio did not compensate for active risk taken versus the benchmark.</>
+            }{' '}
+            {excessCagr != null && (
+              <>CAGR difference (portfolio − benchmark): <strong style={{ color: excessCagr >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+                {excessCagr >= 0 ? '+' : ''}{formatPercent(excessCagr)}
+              </strong>.{' '}</>
+            )}
+          </>
         )}
         {beta != null && (
-          <>With a beta of <strong>{formatNumber(beta)}</strong>,{' '}
-            {beta > 1.1 ? 'the portfolio is more aggressive than the market.' : beta < 0.9 ? 'the portfolio is more defensive than the market.' : 'market exposure is neutral.'}{' '}</>
+          <>Estimated beta: <strong>{formatNumber(beta)}</strong>
+            {' '}({beta > 1.1
+              ? 'more aggressive than the benchmark'
+              : beta < 0.9
+                ? `historically ~${(beta * 100).toFixed(0)}% of benchmark sensitivity`
+                : `close to but not identical to the benchmark`
+            }).{' '}
+            <em>Beta-based loss predictions are only reliable when computed on well-aligned return series.</em>{' '}
+          </>
         )}
         {r_squared != null && (
           <>R² of <strong>{formatPercent(r_squared)}</strong>{' '}
@@ -292,6 +407,11 @@ const getBenchmarkInsight = (data) => {
           <span className="insight-conclusion">
             Information Ratio of {formatNumber(information_ratio)}{' '}
             — {information_ratio > 0.5 ? 'excellent active management.' : information_ratio > 0 ? 'positive but improvable active management.' : 'active management is not adding value.'}
+            {information_interpretation && (
+              <span style={{ display: 'block', marginTop: '0.35em', fontSize: '0.85em', opacity: 0.75, fontWeight: 400 }}>
+                ℹ️ {information_interpretation}
+              </span>
+            )}
           </span>
         )}
       </div>
@@ -327,7 +447,7 @@ const getPortfolioVsBenchmarkInsight = (data) => {
               ? 'Unfavorable positioning: lower return with higher risk. Active exposure is not justified.'
               : isOut
                 ? 'Higher return but with more risk — evaluate whether the additional compensation justifies the extra volatility.'
-                : 'Lower risk but also lower return — acceptable if the objective is capital preservation.'}
+                : 'In this sample, the portfolio delivered lower return and lower measured volatility than the benchmark. It remains a 100% equity portfolio and should not be considered a capital-preservation strategy.'}
         </span>
       </div>
       <WarningCallout warnings={warnings} severity="callout-danger" />
@@ -370,7 +490,10 @@ const getCorrelationInsight = (data) => {
         {min_correlation != null && (
           <span className="insight-conclusion">
             Minimum correlation of {formatNumber(min_correlation, 3)}{' '}
-            {min_correlation < 0 ? '— natural hedging exists between at least one pair of assets.' : '— all assets move in the same direction, no natural hedging present.'}
+            {min_correlation < 0
+              ? '— natural hedging exists between at least one pair of assets.'
+              : '— all pairwise correlations are positive; diversification is present, but no component provides a systematic negative-correlation hedge.'
+            }
           </span>
         )}
       </div>
@@ -410,6 +533,7 @@ const RiskDashboard = ({ data }) => {
     const ddEntries = data.drawdown?.per_ticker ? Object.entries(data.drawdown.per_ticker) : [];
     const ddWorst = ddEntries.length > 0 ? ddEntries.reduce((a, b) => a[1].max_drawdown < b[1].max_drawdown ? a : b) : null;
     const ddBest = ddEntries.length > 1 ? ddEntries.reduce((a, b) => a[1].max_drawdown > b[1].max_drawdown ? a : b) : null;
+    const portfolioDD = data.drawdown?.portfolio && !data.drawdown.portfolio.error ? data.drawdown.portfolio : null;
 
     return (
       <div className="results-container">
@@ -433,12 +557,27 @@ const RiskDashboard = ({ data }) => {
               </span>
             </div>
             <div className="notebook-row">
-              <span className="notebook-label">Analysis Days:</span>
-              <span className="notebook-value">{data.period_days ? data.period_days.toLocaleString() : 'N/A'}</span>
+              <span className="notebook-label">Analysis Sessions:</span>
+              <span className="notebook-value">
+                {data.period_days ? data.period_days.toLocaleString() : 'N/A'}
+                {data.period_days > 252 && (
+                  <span className="normality-annotation">(~{(data.period_days / 252).toFixed(1)} trading years)</span>
+                )}
+              </span>
             </div>
             <div className="notebook-row">
               <span className="notebook-label">Risk-Free Rate:</span>
-              <span className="notebook-value">{data.risk_free_rate != null ? formatPercent(data.risk_free_rate) : 'N/A'}</span>
+              <span className="notebook-value">
+                {data.risk_free_rate != null ? formatPercent(data.risk_free_rate) : 'N/A'}
+                {data.risk_free_rate != null && data.period_days > 756 && (
+                  <span
+                    className="normality-annotation"
+                    title="Sharpe, Sortino and alpha assume this single rate across the whole period. Policy rates varied widely over multi-year windows, so these excess-return metrics carry some distortion."
+                  >
+                    (constant across ~{(data.period_days / 252).toFixed(1)} years — distorts Sharpe/alpha)
+                  </span>
+                )}
+              </span>
             </div>
             <div className="notebook-row">
               <span className="notebook-label">Weights:</span>
@@ -552,7 +691,7 @@ const RiskDashboard = ({ data }) => {
                     <th className="text-right">Weight</th>
                     <th className="text-right">Annual Return</th>
                     <th className="text-right">Annual Volatility</th>
-                    <th className="text-right">Return/Risk</th>
+                    <th className="text-right">CAGR/Volatility</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -586,10 +725,10 @@ const RiskDashboard = ({ data }) => {
                   <thead>
                     <tr>
                       <th>Method</th>
-                      <th className="text-right">VaR Daily</th>
-                      <th className="text-right">VaR Annual</th>
-                      <th className="text-right">ES Daily</th>
-                      <th className="text-right">ES Annual</th>
+                      <th className="text-right" title="95th-percentile daily loss threshold — ~5% of days exceeded this">VaR Daily (95%)</th>
+                      <th className="text-right" title="VaR Daily × √252 — scaling approximation, not a maximum annual loss">VaR Annual (≈√252)</th>
+                      <th className="text-right" title="Average loss on the worst 5% of days — always exceeds VaR">ES Daily</th>
+                      <th className="text-right" title="ES Daily × √252 — same scaling approximation as VaR Annual">ES Annual (≈√252)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -610,9 +749,12 @@ const RiskDashboard = ({ data }) => {
             )}
             {data.var_es.risk_level && (
               <div className="risk-level-badge">
-                <strong>Risk Level: </strong>
+                <strong>Tail-Risk Level: </strong>
                 <span style={{ fontWeight: 700, color: riskColor(data.var_es.risk_level) }}>
                   {data.var_es.risk_level}
+                </span>
+                <span style={{ fontWeight: 400, fontSize: '0.82em', marginLeft: '0.4em', opacity: 0.7 }}>
+                  (based on distributional non-normality and VaR magnitude — not a composite portfolio risk score)
                 </span>
               </div>
             )}
@@ -622,27 +764,50 @@ const RiskDashboard = ({ data }) => {
         {/* ── Drawdown per Ticker ── */}
         {data.drawdown && !data.drawdown.error && data.drawdown.per_ticker && (
           <Card className="result-summary-card notebook-style">
-            <h3 className="notebook-section-title">DRAWDOWN ANALYSIS (Per Ticker)</h3>
+            <h3 className="notebook-section-title">DRAWDOWN ANALYSIS</h3>
             {getDrawdownInsight(data)}
             <div className="dash-table-wrap">
               <table className="dash-table">
                 <thead>
                   <tr>
-                    <th>Ticker</th>
+                    <th>Asset</th>
                     <th className="text-right">Max Drawdown</th>
-                    <th className="text-right">Date</th>
-                    <th className="text-right">Duration (days)</th>
+                    <th className="text-right" title="Last session at the previous high-water mark">Peak</th>
+                    <th className="text-right">Trough</th>
+                    <th className="text-right" title="First session back at the previous peak">Recovery</th>
+                    <th className="text-right" title="Longest continuous stretch below a previous peak — may belong to a different episode than the deepest drawdown">Longest underwater</th>
                     <th className="text-right">Calmar Ratio</th>
                     <th className="text-right">Sterling Ratio</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(data.drawdown.per_ticker).map(([ticker, dd]) => (
-                    <tr key={ticker}>
-                      <td className="td-ticker">{ticker}</td>
+                  {[
+                    ...(data.drawdown.portfolio && !data.drawdown.portfolio.error
+                      ? [['Portfolio (weighted)', data.drawdown.portfolio, true]]
+                      : []),
+                    ...Object.entries(data.drawdown.per_ticker).map(([t, dd]) => [t, dd, false]),
+                  ].map(([label, dd, isPortfolio]) => (
+                    <tr
+                      key={label}
+                      style={isPortfolio
+                        ? { background: 'var(--accent-subtle, rgba(16,185,129,0.07))', fontWeight: 600 }
+                        : undefined}
+                    >
+                      <td className="td-ticker">{label}</td>
                       <td className="td-danger-bold">{formatPercent(dd.max_drawdown)}</td>
+                      <td className="text-right">{fmtDate(dd.max_drawdown_peak_date) || '—'}</td>
                       <td className="text-right">{fmtDate(dd.max_drawdown_date)}</td>
-                      <td className="text-right">{dd.max_underwater_duration ?? 'N/A'}</td>
+                      <td className="text-right">
+                        {dd.max_drawdown_recovered === false
+                          ? <span title="Not recovered within the analysed period">not recovered</span>
+                          : (fmtDate(dd.max_drawdown_recovery_date) || '—')}
+                      </td>
+                      <td className="text-right">
+                        {dd.max_underwater_duration ?? 'N/A'}
+                        {dd.longest_underwater_is_max_drawdown === false && (
+                          <span title="Different episode from the deepest drawdown" style={{ marginLeft: 4, opacity: 0.7 }}>*</span>
+                        )}
+                      </td>
                       <td className="td-strong">{formatNumber(dd.calmar_ratio)}</td>
                       <td className="td-strong">{formatNumber(dd.sterling_ratio)}</td>
                     </tr>
@@ -650,6 +815,10 @@ const RiskDashboard = ({ data }) => {
                 </tbody>
               </table>
             </div>
+            <p className="table-footnote" style={{ fontSize: '0.8em', opacity: 0.7, marginTop: '0.6em' }}>
+              Durations are trading sessions (~252 per year). * marks assets whose longest underwater stretch
+              belongs to a different episode than the deepest drawdown.
+            </p>
           </Card>
         )}
 
@@ -972,34 +1141,64 @@ const RiskDashboard = ({ data }) => {
               </div>
             )}
 
-            {ddWorst && (
-              <div className="insight-kpi insight-kpi--red">
-                <strong className="insight-kpi__title">Downside Risk</strong>
-                <p className="insight-kpi__body">
-                  Worst individual drawdown: <strong>{ddWorst[0]}</strong> with{' '}
-                  <strong style={{ color: 'var(--danger)' }}>{formatPercent(ddWorst[1].max_drawdown)}</strong>,
-                  lasting <strong>{ddWorst[1].max_underwater_duration || 'N/A'}</strong> days.
-                  {ddBest && (
-                    <> Best: <strong>{ddBest[0]}</strong> with{' '}
-                    <strong style={{ color: 'var(--danger)' }}>{formatPercent(ddBest[1].max_drawdown)}</strong>.</>
-                  )}
-                </p>
-              </div>
-            )}
+            {(portfolioDD || ddWorst) && (() => {
+              const ref = portfolioDD ?? ddWorst[1];
+              const refLabel = portfolioDD ? 'Portfolio' : ddWorst[0];
+              const mddDur = ref.max_drawdown_duration;
+              const uwDur  = ref.max_underwater_duration;
+              const sameEpisode = ref.longest_underwater_is_max_drawdown !== false;
+              return (
+                <div className="insight-kpi insight-kpi--red">
+                  <strong className="insight-kpi__title">Downside Risk</strong>
+                  <p className="insight-kpi__body">
+                    {refLabel} maximum drawdown:{' '}
+                    <strong style={{ color: 'var(--danger)' }}>{formatPercent(ref.max_drawdown)}</strong>
+                    {mddDur > 0 && (
+                      ref.max_drawdown_recovered
+                        ? <>, recovered after <strong>{formatDrawdownDuration(mddDur)}</strong></>
+                        : <>, not yet recovered within the period</>
+                    )}.{' '}
+                    {!sameEpisode && uwDur > 0 && (
+                      <>Longest separate underwater period: <strong>{formatDrawdownDuration(uwDur)}</strong>.{' '}</>
+                    )}
+                    {ddBest && (
+                      <>Most resilient: <strong>{ddBest[0]}</strong> ({formatPercent(ddBest[1].max_drawdown)}).</>
+                    )}
+                  </p>
+                </div>
+              );
+            })()}
 
-            {data.benchmark_analysis && data.benchmark_analysis.alpha_annual != null && (
-              <div className={`insight-kpi ${data.benchmark_analysis.alpha_annual >= 0 ? 'insight-kpi--positive' : 'insight-kpi--negative'}`}>
-                <strong className="insight-kpi__title">Benchmark Comparison</strong>
-                <p className="insight-kpi__body">
-                  Alpha of <strong style={{ color: posNeg(data.benchmark_analysis.alpha_annual) }}>
-                    {formatPercent(data.benchmark_analysis.alpha_annual)}
-                  </strong> (annual) indicates the portfolio{' '}
-                  <strong>{data.benchmark_analysis.alpha_annual >= 0 ? 'outperforms' : 'underperforms'}</strong> the benchmark
-                  with a beta of <strong>{formatNumber(data.benchmark_analysis.beta)}</strong> and
-                  R² of <strong>{formatPercent(data.benchmark_analysis.r_squared)}</strong>.
-                </p>
-              </div>
-            )}
+            {data.benchmark_analysis && data.benchmark_analysis.alpha_annual != null && (() => {
+              const ba = data.benchmark_analysis;
+              const excessCagr = (ba.portfolio_return_annual != null && ba.benchmark_return_annual != null)
+                ? ba.portfolio_return_annual - ba.benchmark_return_annual : null;
+              const alphaPositive = ba.alpha_annual >= 0;
+              const cagrPositive = excessCagr != null && excessCagr >= 0;
+              const kpiClass = alphaPositive && cagrPositive
+                ? 'insight-kpi--positive'
+                : !alphaPositive ? 'insight-kpi--negative' : 'insight-kpi--warning';
+              return (
+                <div className={`insight-kpi ${kpiClass}`}>
+                  <strong className="insight-kpi__title">Benchmark Comparison</strong>
+                  <p className="insight-kpi__body">
+                    Jensen's alpha: <strong style={{ color: posNeg(ba.alpha_annual) }}>{formatPercent(ba.alpha_annual)}</strong>
+                    {' '}(estimated daily beta {formatNumber(ba.beta)}, R² {formatPercent(ba.r_squared)}).{' '}
+                    {excessCagr != null && (
+                      <>CAGR vs benchmark:{' '}
+                        <strong style={{ color: posNeg(excessCagr) }}>
+                          {excessCagr >= 0 ? '+' : ''}{formatPercent(excessCagr)}
+                        </strong>.{' '}
+                      </>
+                    )}
+                    {alphaPositive && excessCagr != null && !cagrPositive && (
+                      <em>Positive alpha with lower CAGR — beta {'<'} 1 reduces systematic exposure, so raw returns lag the benchmark even when risk-adjusted performance is positive.</em>
+                    )}
+                    {' '}<em style={{ fontSize: '0.82em', opacity: 0.7 }}>Daily beta may be distorted by asynchronous valuation times — confirm with aligned weekly returns.</em>
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         </Card>
       </div>

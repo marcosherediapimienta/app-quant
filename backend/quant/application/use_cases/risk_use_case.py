@@ -27,7 +27,12 @@ logger = logging.getLogger(__name__)
 
 _DRAWDOWN_KEYS = (
     'max_drawdown', 'max_drawdown_pct', 'max_drawdown_date',
-    'max_underwater_duration', 'calmar_ratio', 'sterling_ratio', 'annual_return',
+    'max_drawdown_peak_date', 'max_drawdown_recovery_date',
+    'max_drawdown_recovered', 'max_drawdown_duration',
+    'max_underwater_duration', 'longest_underwater_start',
+    'longest_underwater_trough_date', 'longest_underwater_recovery_date',
+    'longest_underwater_is_max_drawdown',
+    'calmar_ratio', 'sterling_ratio', 'annual_return',
 )
 
 
@@ -165,6 +170,16 @@ class RiskUseCase:
             'drawdown', self._drawdown_per_ticker,
             tickers, returns_aligned, weights_array, risk_free_rate,
         )
+
+        portfolio_dd = _safe_analyze(
+            'drawdown_portfolio',
+            self.drawdown_analyzer.analyze,
+            returns_aligned, weights_array, risk_free_rate,
+        )
+        if isinstance(results['drawdown'], dict) and 'error' not in results['drawdown']:
+            results['drawdown']['portfolio'] = {
+                k: portfolio_dd[k] for k in _DRAWDOWN_KEYS
+            } if isinstance(portfolio_dd, dict) and 'error' not in portfolio_dd else {'error': portfolio_dd.get('error', 'unknown')}
 
         results['distribution'] = _safe_analyze(
             'distribution', self.distribution_analyzer.analyze,

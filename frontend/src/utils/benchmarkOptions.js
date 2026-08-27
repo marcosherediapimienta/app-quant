@@ -8,7 +8,7 @@ export const BENCHMARK_LABELS = {
   IBEX35: 'IBEX 35 · ~35 companies (EUR)',
   EUROSTOXX50: 'EURO STOXX 50 · ~50 companies (EUR)',
   NIKKEI225: 'Nikkei 225 · ~225 companies (JPY)',
-  MSCI_WORLD: 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)',
+  MSCI_WORLD: 'MSCI World proxy · iShares MSCI World ETF (ticker: URTH, USD, dividends reinvested)',
 };
 
 /** Yahoo symbol (CAPM dropdown value) → risk API benchmark key (backend BENCHMARKS). */
@@ -20,7 +20,7 @@ export const YAHOO_TICKER_TO_RISK_BENCHMARK = {
   '^IBEX': 'IBEX35',
   '^STOXX50E': 'EUROSTOXX50',
   '^N225': 'NIKKEI225',
-  '^990100-USD-STRD': 'MSCI_WORLD',
+  'URTH': 'MSCI_WORLD',
   '000001.SS': 'SHANGHAI',
 };
 

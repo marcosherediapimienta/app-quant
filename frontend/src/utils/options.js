@@ -6,7 +6,7 @@ export const PORTFOLIO_TICKER_OPTIONS = [
   { value: '^IBEX', label: '^IBEX - IBEX 35 Index (EUR)' },
   { value: '^STOXX50E', label: '^STOXX50E - Euro Stoxx 50 Index (EUR)' },
   { value: '^N225', label: '^N225 - Nikkei 225 Index (JPY)' },
-  { value: '^990100-USD-STRD', label: '^990100-USD-STRD - MSCI World Index (USD)' },
+  { value: 'URTH', label: 'URTH - MSCI World proxy · iShares MSCI World ETF (ticker: URTH, USD, dividends reinvested)' },
   { value: '000001.SS', label: '000001.SS - Shanghai Composite Index (CNY)' },
 ];
 

@@ -6,7 +6,7 @@ BENCHMARKS = {
     'IBEX35': '^IBEX',
     'EUROSTOXX50': '^STOXX50E',
     'NIKKEI225': '^N225',
-    'MSCI_WORLD': '^990100-USD-STRD',
+    'MSCI_WORLD': 'URTH',
     'RUSSELL2000': '^RUT',
     'SHANGHAI': '000001.SS',
 }
@@ -32,7 +32,7 @@ BENCHMARK_LABELS = {
     'IBEX35': 'IBEX 35 · ~35 companies (EUR)',
     'EUROSTOXX50': 'EURO STOXX 50 · ~50 companies (EUR)',
     'NIKKEI225': 'Nikkei 225 · ~225 companies (JPY)',
-    'MSCI_WORLD': 'MSCI World · SP500 + EURO STOXX 50 + Nikkei 225 (USD)',
+    'MSCI_WORLD': 'MSCI World · iShares URTH ETF (USD, dividends reinvested)',
     'RUSSELL2000': 'Russell 2000 · small cap (USD)',
 }
 
